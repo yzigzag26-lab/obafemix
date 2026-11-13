@@ -65,13 +65,39 @@ export default function ProjectsClient() {
   const [projects, setProjects] = useState<Project[]>([defaultProject]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("obafemix.adminDraft");
-      if (!raw) return;
-      const draft = JSON.parse(raw);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrating from this browser's localStorage after mount (SSR-safe)
-      if (Array.isArray(draft.projects) && draft.projects.length) setProjects(draft.projects);
-    } catch { /* keep defaults */ }
+    let cancelled = false;
+    (async () => {
+      // 1) The database (via the API) is the source of truth when reachable.
+      try {
+        const { API_BASE } = await import("@/lib/api");
+        const res = await fetch(`${API_BASE}/projects`);
+        if (res.ok) {
+          const j = await res.json();
+          if (!cancelled && Array.isArray(j.data) && j.data.length) {
+            setProjects(j.data.map((x: Record<string, unknown>) => ({
+              id: String(x.id), title: String(x.title), aside: String(x.aside ?? ""), category: String(x.category),
+              tags: Array.isArray(x.tags) ? (x.tags as string[]).join(", ") : "",
+              featured: Boolean(x.featured),
+              status: String(x.status) === "in_progress" ? "In Progress" : String(x.status) === "coming_soon" ? "Coming Soon" : String(x.status).charAt(0).toUpperCase() + String(x.status).slice(1),
+              description: String(x.description), description2: String(x.description2 ?? ""), role: String(x.role ?? ""),
+              contributions: (x.contributions as string[]) ?? [], stack: (x.stack as string[]) ?? [],
+              liveUrl: String(x.liveUrl ?? ""), githubUrl: String(x.githubUrl ?? ""),
+              image: String(x.image ?? ""), imageAlt: String(x.imageAlt ?? ""), caption: String(x.caption ?? ""),
+              location: String(x.location ?? ""), year: String(x.year ?? ""),
+            })));
+            return;
+          }
+        }
+      } catch { /* API offline — fall through to local draft/defaults */ }
+      // 2) Local admin draft (this browser), 3) built-in defaults already in state.
+      try {
+        const raw = localStorage.getItem("obafemix.adminDraft");
+        if (!raw || cancelled) return;
+        const draft = JSON.parse(raw);
+        if (Array.isArray(draft.projects) && draft.projects.length) setProjects(draft.projects);
+      } catch { /* keep defaults */ }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const filters = useMemo(() => {

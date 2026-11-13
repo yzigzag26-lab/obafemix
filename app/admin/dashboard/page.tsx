@@ -12,9 +12,10 @@ const defaults = {
   headline: "I build solutions for a better tomorrow.",
   titles: ["Student Developer", "Full-Stack Developer", "Software Developer", "Technology Entrepreneur"],
   skills: [
-    { name: "HTML", level: "Intermediate" }, { name: "CSS", level: "Intermediate" }, { name: "JavaScript", level: "Beginner–Intermediate" },
-    { name: "TypeScript", level: "Beginner–Intermediate" }, { name: "React", level: "Beginner–Intermediate" }, { name: "Node.js", level: "Beginner" },
-  ] as { name: string; level: string }[],
+    { name: "TypeScript", percent: 95, category: "Programming", color: "#3178C6", featured: true },
+    { name: "React", percent: 90, category: "Frontend", color: "#61DAFB", featured: true },
+    { name: "Git", percent: 95, category: "Developer Tools", color: "#F05032", featured: true },
+  ] as { name: string; percent: number; category: string; color: string; featured: boolean }[],
   project: { name: "WAZOBIA", url: "https://wazobia-omega.vercel.app/", contributions: "Frontend Development, Backend Development, API Integration, Product Architecture, Product Development", description: "WAZOBIA is an African language technology ecosystem — Nigeria first, built for Africa." },
   projects: [defaultProject] as Project[],
   email: "yzigzag26@gmail.com", phone: "", contactLocation: "Lagos State, Nigeria", timezone: "Africa/Lagos (WAT)",
@@ -22,7 +23,7 @@ const defaults = {
   metaTitle: "OBAFEMIX — I build solutions for a better tomorrow", metaDescription: "OBAFEMIX — student & full-stack developer in Lagos State, Nigeria.", keywords: "OBAFEMIX, full-stack developer, Lagos, WAZOBIA", themeColor: "#05010f", ogImage: "/assets/obafemix.png",
 };
 const LEVELS = ["Beginner", "Beginner–Intermediate", "Intermediate"];
-const panels = ["Overview", "About Me", "Professional Titles", "Skills & Levels", "Projects", "Profile Image", "Contact Info", "Social Links", "Site Metadata"] as const;
+const panels = ["Overview", "About Me", "Professional Titles", "Skills & Levels", "Projects", "Messages", "Profile Image", "Contact Info", "Social Links", "Site Metadata"] as const;
 
 export default function Dashboard() {
   const router = useRouter();
@@ -32,7 +33,9 @@ export default function Dashboard() {
   const [savedAt, setSavedAt] = useState("");
   const [imgPreview, setImgPreview] = useState("");
   const [newTitle, setNewTitle] = useState("");
-  const [newSkill, setNewSkill] = useState({ name: "", level: "Beginner" });
+  const [newSkill, setNewSkill] = useState({ name: "", percent: 50, category: "Frontend", color: "#a78bfa", featured: false });
+  const serverSkillIds = useRef<string[]>([]);
+  const [messages, setMessages] = useState<{ id: string; name: string; email: string; subject: string; message: string; readAt: string | null; createdAt: string }[]>([]);
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [projectForm, setProjectForm] = useState<Project>(emptyProject);
@@ -71,6 +74,41 @@ export default function Dashboard() {
           }
           setApiProjectsLoaded(true);
         }
+        const sk = await apiFetch("/skills");
+        if (sk.ok) {
+          const sj = await sk.json();
+          if (Array.isArray(sj.data) && sj.data.length) {
+            serverSkillIds.current = sj.data.map((x: { id: string }) => x.id);
+            setDraft((d) => ({ ...d, skills: sj.data.map((x: Record<string, unknown>) => ({
+              name: String(x.name), percent: Number(x.percent), category: String(x.category),
+              color: String(x.color ?? "#a78bfa"), featured: Boolean(x.featured),
+            })) }));
+          }
+        }
+        const st = await apiFetch("/site");
+        if (st.ok) {
+          const sd = (await st.json())?.data;
+          if (sd) setDraft((d) => ({
+            ...d,
+            bio: sd.profile?.aboutBio || d.bio,
+            headline: sd.profile?.headline || d.headline,
+            location: sd.profile?.location || d.location,
+            availability: sd.profile?.availability || d.availability,
+            titles: Array.isArray(sd.titles) && sd.titles.length ? sd.titles : d.titles,
+            metaTitle: sd.settings?.metaTitle || d.metaTitle,
+            metaDescription: sd.settings?.metaDescription || d.metaDescription,
+            keywords: sd.settings?.keywords || d.keywords,
+            themeColor: sd.settings?.themeColor || d.themeColor,
+            ogImage: sd.settings?.ogImageUrl || d.ogImage,
+            email: sd.settings?.contactEmail || d.email,
+            github: sd.socials?.find((s: { platform: string }) => s.platform === "github")?.url || d.github,
+            wazobiaUrl: sd.socials?.find((s: { platform: string }) => s.platform === "wazobia")?.url || d.wazobiaUrl,
+            linkedin: sd.socials?.find((s: { platform: string }) => s.platform === "linkedin")?.url || d.linkedin,
+            linkedinPublished: Boolean(sd.socials?.find((s: { platform: string }) => s.platform === "linkedin")?.published),
+          }));
+        }
+        const ms = await apiFetch("/admin/contact");
+        if (ms.ok) { const mj = await ms.json(); if (Array.isArray(mj.data)) setMessages(mj.data); }
       } catch { router.replace("/admin"); return; }
     })();
     try {
@@ -107,6 +145,31 @@ export default function Dashboard() {
         }
       }
     } catch { /* API offline: local draft below still saves; banner explains the split */ }
+    try {
+      const { apiFetch: af, isUuid: iu } = await import("@/lib/api");
+      // Skills: delete removed, update existing (matched by name via POST upsert is server-side for skills by name),
+      // simplest correct path: POST every skill (upsert by name), DELETE server skills whose names vanished.
+      const before = await (await af("/skills")).json().catch(() => null);
+      const serverNames: string[] = Array.isArray(before?.data) ? before.data.map((x: { name: string }) => x.name) : [];
+      for (const name of serverNames.filter((n: string) => !draft.skills.some((s) => s.name === n))) {
+        const row = before.data.find((x: { name: string }) => x.name === name);
+        if (row?.id) await af(`/admin/skills/${row.id}`, { method: "DELETE" });
+      }
+      for (const s of draft.skills) await af("/admin/skills", { method: "POST", body: JSON.stringify(s) });
+      void iu;
+      // Profile + settings
+      await af("/admin/profile", { method: "PATCH", body: JSON.stringify({ headline: draft.headline, location: draft.location, availability: draft.availability, aboutBio: draft.bio }) });
+      await af("/admin/settings", { method: "PATCH", body: JSON.stringify({ metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, keywords: draft.keywords, themeColor: draft.themeColor, ogImageUrl: draft.ogImage, contactEmail: draft.email }) });
+      // Titles: diff by label against the server's list
+      const tr = await (await af("/admin/titles")).json().catch(() => null);
+      const serverTitles: { id: string; label: string }[] = Array.isArray(tr?.data) ? tr.data : [];
+      for (const st2 of serverTitles.filter((x) => !draft.titles.includes(x.label))) await af(`/admin/titles/${st2.id}`, { method: "DELETE" });
+      for (const label of draft.titles.filter((l) => !serverTitles.some((x) => x.label === l))) await af("/admin/titles", { method: "POST", body: JSON.stringify({ label }) });
+      // Socials
+      await af("/admin/socials/github", { method: "PUT", body: JSON.stringify({ url: draft.github, published: true }) });
+      await af("/admin/socials/linkedin", { method: "PUT", body: JSON.stringify({ url: draft.linkedin, published: draft.linkedinPublished }) });
+      await af("/admin/socials/wazobia", { method: "PUT", body: JSON.stringify({ url: draft.wazobiaUrl, published: true }) });
+    } catch { /* offline: local draft below still saves */ }
     localStorage.setItem("obafemix.adminDraft", JSON.stringify(draft));
     setSavedAt(new Date().toLocaleTimeString());
   };
@@ -142,7 +205,7 @@ export default function Dashboard() {
           {panel === "Overview" && (
             <div>
               <h1 className="font-display text-3xl font-extrabold">Overview</h1>
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">{[["16", "Technologies"], [String(draft.projects.length), draft.projects.length === 1 ? "Flagship Product" : "Projects on Site"], ["9", "Admin Panels"]].map(([n, l]) => <div key={l} className="rounded-2xl border border-violet-300/15 p-5"><p className="font-display text-2xl font-extrabold text-violet-200">{n}</p><p className="text-sm text-white/55">{l}</p></div>)}</div>
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">{[["16", "Technologies"], [String(draft.projects.length), draft.projects.length === 1 ? "Flagship Product" : "Projects on Site"], ["10", "Admin Panels"]].map(([n, l]) => <div key={l} className="rounded-2xl border border-violet-300/15 p-5"><p className="font-display text-2xl font-extrabold text-violet-200">{n}</p><p className="text-sm text-white/55">{l}</p></div>)}</div>
               <div className="mt-6 rounded-2xl border border-violet-300/15 p-5"><p className="font-display font-bold">{draft.projects[0]?.title ?? "WAZOBIA"} — Flagship</p><p className="mt-1 text-sm text-white/60">{draft.projects[0]?.description}</p>{draft.projects[0]?.liveUrl && <a href={draft.projects[0].liveUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm text-violet-300">Visit live site →</a>}<button onClick={() => setPanel("Projects")} className="btn-primary-glow mt-4 block rounded-full px-4 py-2 text-sm font-semibold">+ Add a project</button></div>
               <p className="mt-6 font-mono text-[10px] uppercase tracking-[.25em] text-violet-300/80">Build checklist</p>
               <ul className="mt-2 space-y-1.5 text-sm text-white/70">{["Hero video + navbar avatar live", "About crown emblem (no portrait)", "Projects are managed in the Projects panel — added projects appear on the site in the same card format", "Contact form via mailto (no backend)", "Real auth (Supabase) — backend phase"].map(i => <li key={i}>✓ {i}</li>)}</ul>
@@ -163,16 +226,26 @@ export default function Dashboard() {
             </div>
           )}
           {panel === "Skills & Levels" && (
-            <div><h1 className="font-display text-3xl font-extrabold">Skills &amp; Levels</h1><p className="mt-1 text-sm text-white/55">Honest levels only — Beginner / Beginner–Intermediate / Intermediate.</p>
+            <div><h1 className="font-display text-3xl font-extrabold">Skills &amp; Percentages</h1><p className="mt-1 text-sm text-white/55">These percentages are the bars on the site. Category controls the filter pill; Featured = shown in the default “8 of 20” view. Saves to the database on Save.</p>
               <ul className="mt-4 space-y-2">{draft.skills.map((s, i) => (
                 <li key={i} className="flex flex-wrap items-center gap-2 rounded-xl border border-violet-300/15 px-4 py-2.5">
-                  <input className="input-dark !w-auto flex-1" value={s.name} onChange={e => set("skills", draft.skills.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
-                  <select className="input-dark !w-auto" value={s.level} onChange={e => set("skills", draft.skills.map((x, j) => j === i ? { ...x, level: e.target.value } : x))}>{LEVELS.map(l => <option key={l} className="bg-[#0d0724]">{l}</option>)}</select>
+                  <input className="input-dark !w-auto flex-1" value={s.name} onChange={e => set("skills", draft.skills.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} aria-label="Skill name" />
+                  <input type="number" min={0} max={100} className="input-dark !w-24" value={s.percent} onChange={e => set("skills", draft.skills.map((x, j) => j === i ? { ...x, percent: Math.max(0, Math.min(100, Number(e.target.value) || 0)) } : x))} aria-label="Percent" />
+                  <span className="text-sm text-white/50">%</span>
+                  <select className="input-dark !w-auto [&>option]:bg-[#0d0724]" value={s.category} onChange={e => set("skills", draft.skills.map((x, j) => j === i ? { ...x, category: e.target.value } : x))} aria-label="Category">
+                    {["Programming","Frontend","Backend","API","AI","Data","Developer Tools","Operating Systems","Databases","DevOps","Architecture","Computer Science"].map(c => <option key={c}>{c}</option>)}
+                  </select>
+                  <label className="flex items-center gap-1.5 text-xs text-white/60"><input type="checkbox" checked={s.featured} onChange={e => set("skills", draft.skills.map((x, j) => j === i ? { ...x, featured: e.target.checked } : x))} className="h-4 w-4 accent-violet-500" /> Featured</label>
                   <button onClick={() => set("skills", draft.skills.filter((_, j) => j !== i))} className="text-sm text-red-300">Remove</button>
                 </li>))}</ul>
-              <div className="mt-4 flex flex-wrap gap-2"><input className="input-dark !w-auto flex-1" placeholder="New skill" value={newSkill.name} onChange={e => setNewSkill({ ...newSkill, name: e.target.value })} />
-                <select className="input-dark !w-auto" value={newSkill.level} onChange={e => setNewSkill({ ...newSkill, level: e.target.value })}>{LEVELS.map(l => <option key={l} className="bg-[#0d0724]">{l}</option>)}</select>
-                <button disabled={!newSkill.name.trim()} onClick={() => { set("skills", [...draft.skills, newSkill]); setNewSkill({ name: "", level: "Beginner" }); }} className="btn-primary-glow rounded-xl px-4 text-sm font-semibold disabled:opacity-40">Add</button></div>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <input className="input-dark !w-auto flex-1" placeholder="New skill name" value={newSkill.name} onChange={e => setNewSkill({ ...newSkill, name: e.target.value })} />
+                <input type="number" min={0} max={100} className="input-dark !w-24" value={newSkill.percent} onChange={e => setNewSkill({ ...newSkill, percent: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })} aria-label="New skill percent" />
+                <select className="input-dark !w-auto [&>option]:bg-[#0d0724]" value={newSkill.category} onChange={e => setNewSkill({ ...newSkill, category: e.target.value })}>
+                  {["Programming","Frontend","Backend","API","AI","Data","Developer Tools","Operating Systems","Databases","DevOps","Architecture","Computer Science"].map(c => <option key={c}>{c}</option>)}
+                </select>
+                <button disabled={!newSkill.name.trim()} onClick={() => { set("skills", [...draft.skills, newSkill]); setNewSkill({ name: "", percent: 50, category: "Frontend", color: "#a78bfa", featured: false }); }} className="btn-primary-glow whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-40">Add</button>
+              </div>
             </div>
           )}
           {panel === "Projects" && (() => {
@@ -316,6 +389,30 @@ export default function Dashboard() {
             </div>
             );
           })()}
+          {panel === "Messages" && (
+            <div><h1 className="font-display text-3xl font-extrabold">Messages</h1>
+              <p className="mt-1 text-sm text-white/55">From the website contact form, stored in the database. {messages.filter((m) => !m.readAt).length} unread.</p>
+              <ul className="mt-5 space-y-3">
+                {messages.map((m) => (
+                  <li key={m.id} className={`rounded-2xl border p-4 ${m.readAt ? "border-violet-300/10" : "border-violet-300/35 bg-violet-500/5"}`}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-display flex-1 font-bold">{m.name} <span className="text-sm font-normal text-white/45">· {m.email}</span></p>
+                      <span className="chip text-[10px]">{m.subject}</span>
+                      {!m.readAt && <span className="chip text-[10px]">UNREAD</span>}
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-white/70">{m.message}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/40">
+                      <span>{new Date(m.createdAt).toLocaleString()}</span><span className="flex-1" />
+                      {!m.readAt && <button onClick={async () => { const { apiFetch } = await import("@/lib/api"); await apiFetch(`/admin/contact/${m.id}`, { method: "PATCH", body: JSON.stringify({ read: true }) }); setMessages(messages.map((x) => x.id === m.id ? { ...x, readAt: new Date().toISOString() } : x)); }} className="rounded-full border border-violet-300/30 px-3 py-1.5 text-white/70 hover:bg-violet-500/15">Mark read</button>}
+                      <a href={`mailto:${m.email}`} className="rounded-full border border-violet-300/30 px-3 py-1.5 text-white/70 hover:bg-violet-500/15">Reply by email</a>
+                      <button onClick={async () => { const { apiFetch } = await import("@/lib/api"); await apiFetch(`/admin/contact/${m.id}`, { method: "DELETE" }); setMessages(messages.filter((x) => x.id !== m.id)); }} className="rounded-full border border-red-300/30 px-3 py-1.5 text-red-200 hover:bg-red-500/15">Delete</button>
+                    </div>
+                  </li>
+                ))}
+                {messages.length === 0 && <li className="rounded-2xl border border-dashed border-violet-300/25 p-8 text-center text-sm text-white/55">No messages yet — when someone uses the contact form, it lands here.</li>}
+              </ul>
+            </div>
+          )}
           {panel === "Profile Image" && (
             <div><h1 className="font-display text-3xl font-extrabold">Profile Image</h1><p className="mt-1 text-sm text-white/55">Preview only — uses a temporary object URL, nothing is uploaded.</p>
               <input type="file" accept="image/*" className="input-dark mt-4" onChange={e => { const f = e.target.files?.[0]; if (f) setImgPreview(URL.createObjectURL(f)); }} />

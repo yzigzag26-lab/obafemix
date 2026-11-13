@@ -17,11 +17,16 @@ export async function issueSession(reply: FastifyReply) {
     .setIssuedAt()
     .setExpirationTime(`${ttl}m`)
     .sign(key);
+  const prod = process.env.NODE_ENV === "production";
   reply.setCookie(COOKIE, token, {
     httpOnly: true,
-    sameSite: "lax",
+    // Render: site and API live on different *.onrender.com subdomains, which
+    // browsers treat as cross-site — the cookie needs SameSite=None + Secure
+    // there, or login appears to succeed and immediately looks logged-out.
+    // Locally (same-site localhost) Lax is correct and works over http.
+    sameSite: prod ? "none" : "lax",
     path: "/",
-    secure: process.env.NODE_ENV === "production",
+    secure: prod,
     maxAge: ttl * 60,
   });
 }

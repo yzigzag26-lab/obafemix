@@ -84,7 +84,7 @@ export async function publicRoutes(app: FastifyInstance) {
   }, async (_req, reply) => {
     const pool = getPool(); if (!pool) return unavailable(reply as never);
     const [profile, titles, socials, settings] = await Promise.all([
-      pool.query(`select display_name as "displayName", alias, headline, description, location, timezone, avatar_url as "avatarUrl", availability from profile where id = 1`),
+      pool.query(`select display_name as "displayName", alias, headline, description, location, timezone, avatar_url as "avatarUrl", availability, about_bio as "aboutBio" from profile where id = 1`),
       pool.query(`select label from professional_titles order by sort_order`),
       pool.query(`select platform, url, published from social_links order by sort_order`),
       pool.query(`select meta_title as "metaTitle", meta_description as "metaDescription", keywords, theme_color as "themeColor", og_image_url as "ogImageUrl", contact_email as "contactEmail" from site_settings where id = 1`),

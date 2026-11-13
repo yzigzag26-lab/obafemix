@@ -25,28 +25,42 @@ function useClock() {
   }, []);
   return time;
 }
-function useTyped(reduced: boolean) {
-  const [text, setText] = useState(site.roles[0]);
+function useTyped(reduced: boolean, roles: string[]) {
+  const [text, setText] = useState(roles[0]);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reduced-motion pins the first role
-    if (reduced) { setText(site.roles[0]); return; }
-    let role = 0, char = site.roles[0].length, deleting = true, timer: ReturnType<typeof setTimeout>;
+    if (reduced) { setText(roles[0]); return; }
+    let role = 0, char = roles[0].length, deleting = true, timer: ReturnType<typeof setTimeout>;
     const step = () => {
-      if (deleting) { char--; if (char === 0) { deleting = false; role = (role + 1) % site.roles.length; } }
-      else { char++; if (char === site.roles[role].length) deleting = true; }
-      setText(site.roles[role].slice(0, Math.max(char, 0)));
-      timer = setTimeout(step, deleting && char === site.roles[role].length ? 1600 : deleting ? 38 : 72);
+      if (deleting) { char--; if (char === 0) { deleting = false; role = (role + 1) % roles.length; } }
+      else { char++; if (char === roles[role].length) deleting = true; }
+      setText(roles[role].slice(0, Math.max(char, 0)));
+      timer = setTimeout(step, deleting && char === roles[role].length ? 1600 : deleting ? 38 : 72);
     };
     timer = setTimeout(step, 1600);
     return () => clearTimeout(timer);
-  }, [reduced]);
+  }, [reduced, roles]);
   return text;
 }
 
 export default function Hero() {
   const reduced = usePrefersReducedMotion();
   const time = useClock();
-  const role = useTyped(reduced);
+  const [roles, setRoles] = useState<string[]>(site.roles);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { API_BASE } = await import("@/lib/api");
+        const res = await fetch(`${API_BASE}/site`);
+        if (!res.ok) return;
+        const j = await res.json();
+        if (!cancelled && Array.isArray(j?.data?.titles) && j.data.titles.length) setRoles(j.data.titles);
+      } catch { /* keep built-in titles */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  const role = useTyped(reduced, roles);
   // First-load fix: the 1.3 MB video must never compete with first paint.
   // The 31 KB poster (priority image below) IS the first paint; the video
   // only starts downloading once the page has loaded / the browser is idle,
