@@ -44,7 +44,7 @@ export default function OrbitGlobe() {
         })}
       </div>
       <style>{`
-        .orbit-ring { animation: orbit-spin 36s linear infinite; --orbit-r: clamp(140px, 19vw, 196px); }
+        .orbit-ring { animation: orbit-spin 36s linear infinite; --orbit-r: clamp(104px, 36vw, 196px); }
         .orbit-tile { animation: orbit-counter 36s linear infinite; }
         @keyframes orbit-spin { to { transform: rotate(360deg); } }
         @keyframes orbit-counter { from { transform: rotate(calc(var(--a) * -1)); } to { transform: rotate(calc(var(--a) * -1 - 360deg)); } }

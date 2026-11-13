@@ -39,3 +39,16 @@ body { background: #05010f; color: #f4f2ff; font-family: var(--font-inter), syst
 .pulse-dot{position:relative}.pulse-dot::after{content:"";position:absolute;inset:-4px;border-radius:999px;border:2px solid rgba(52,211,153,.6);animation:pulsedot 2s ease infinite}@keyframes pulsedot{0%{transform:scale(.6);opacity:1}100%{transform:scale(1.6);opacity:0}}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}html{scroll-behavior:auto}.reveal{opacity:1;transform:none}}
 :root{--font-inter:"Inter",system-ui,sans-serif;--font-sora:"Sora",system-ui,sans-serif;--font-caveat:"Caveat",cursive}
+
+/* ---------- Responsive hardening (all devices) ---------- */
+img, video, svg { max-width: 100%; }
+.input-dark { font-size: 1rem; } /* >=16px stops iOS Safari auto-zoom on focus */
+@media (max-width: 480px) {
+  .eyebrow { letter-spacing: .22em; font-size: .62rem; }
+  .chip { font-size: .72rem; padding: .3rem .65rem; }
+}
+@media (max-width: 360px) {
+  .btn-primary-glow, .chip { white-space: normal; }
+}
+/* Long words/URLs can never push a card off-screen */
+article, section, footer { overflow-wrap: break-word; }
