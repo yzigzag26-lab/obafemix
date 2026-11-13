@@ -15,6 +15,8 @@
 | Database | **Supabase — used as hosted Postgres only** | See §2. Supabase *Auth/Storage* are **not** used; Fastify owns auth, files go to Supabase Storage or local disk later if needed. |
 | Documentation | **Swagger UI** at `/docs`, generated from code | Schemas are the source of truth — docs cannot drift from the API (see §5). |
 | Admin authentication | **One-time password (OTP) read from `.env`** | Single owner, no user table, no sign-ups. Flow + hardening in §4. |
+| Hosting | **Render** (API as a free Web Service `obafemix-api`; site as Static Site if possible, else Web Service `obafemix-web`) — blueprint in `render.yaml` | Free tier spins services down after ~15 min idle, so a **keep-alive ping every 10 minutes** is part of the architecture (§8). |
+| Database project | **Supabase project `obafemix`** — created 2026-11-13, ref `hryxsusauoiyzlorpcys`, region `eu-west-1`, Postgres 17, free tier, ACTIVE_HEALTHY | DB host: `db.hryxsusauoiyzlorpcys.supabase.co`. The database password was generated at creation and handed to the owner once — it lives only in password managers / Render env vars, never in this repo. |
 
 ## 2. Database choice: Supabase (Postgres) vs MongoDB
 
@@ -97,3 +99,29 @@ Fastify ──► Supabase Storage (signed URLs) · Resend (optional email) · A
 1. Scaffold `apps/api` + health + Swagger UI skeleton → 2. Migrations + seed → 3. Public reads (site goes live against them) → 4. OTP auth + admin CRUD (localStorage retired) → 5. Contact inbox + media → 6. AI endpoint graduation.
 
 **Owner actions needed to start:** (a) approve creating the Supabase project `obafemix` (free tier), (b) choose the admin one-time password and where the API will be hosted (same host as the site is easiest for cookies/CORS).
+
+## 8. Hosting on Render + never sleeping (keep-alive every 10 minutes)
+
+Render's free Web Services **spin down after ~15 minutes without inbound traffic** and then
+cold-start (~50 s) on the next request — exactly the impatient-visitor problem we removed from
+the frontend. So the anti-sleep ping is architecture, not an afterthought:
+
+- **What pings:** `.github/workflows/keep-alive.yml` (GitHub Actions, in this repo) runs on
+  `cron: "*/10 * * * *"` — **every 10 minutes** — and `curl`s the API's `GET /api/v1/health`.
+  It also pings the site root *if* the site is deployed as a Web Service (`SITE_URL` variable);
+  a Render **Static Site does not sleep** and needs no ping.
+- **Why 10 and not 14:** a 10-minute interval leaves a **~5-minute safety buffer** before the
+  15-minute idle limit. GitHub's scheduled workflows can drift a few minutes under load; at
+  14 minutes that drift could cross the limit, at 10 it cannot. (10–14 all work on paper —
+  this repo ships 10 for the buffer.)
+- **After the first Render deploy**, set two repository variables
+  (GitHub → Settings → Secrets and variables → Actions → Variables):
+  `API_HEALTH_URL=https://obafemix-api.onrender.com/api/v1/health` and, only if the site is a
+  Web Service, `SITE_URL=https://<site>/`. Until then the workflow warns and skips — it never fails the repo.
+- **Alternatives/complements:** an external uptime monitor (e.g. UptimeRobot, 5-min checks)
+  pointed at the same health URL is a fine second layer; Render's paid plans (from $7/mo per
+  service) never sleep at all and make all of this unnecessary — that's the upgrade path if
+  cold starts ever matter commercially.
+- The blueprint for both services (Frankfurt region, to sit near the `eu-west-1` database,
+  `healthCheckPath`, env var list with `sync: false` for secrets) lives in **`render.yaml`** at
+  the repo root; env var names are mirrored in `apps/api/.env.example`.
