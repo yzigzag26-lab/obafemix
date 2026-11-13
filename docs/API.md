@@ -1,11 +1,12 @@
 # OBAFEMIX — API Reference
 
-Base URL: same origin as the site (`/api/…`). Machine-readable version: [`openapi.yaml`](./openapi.yaml).
+Base URL: the Fastify service, versioned — `/api/v1/…` (e.g. `https://api.example.com/api/v1/projects`).
+Swagger UI (generated from the route schemas, always accurate): `/docs` · raw OpenAPI: `/docs/json`. Machine-readable version: [`openapi.yaml`](./openapi.yaml).
 Architecture rationale: [`BACKEND.md`](./BACKEND.md). **Status: specification — endpoints are not live yet.**
 
 ## Conventions (apply to every endpoint)
 
-- **Auth classes**: `public` (anyone) · `admin` (Supabase JWT cookie, owner only).
+- **Auth classes**: `public` (anyone) · `admin` (session cookie issued by `POST /api/v1/auth/verify` against the `.env` one-time password — see BACKEND_SCOPE.md §4).
 - **Success shape**: `{ "data": … }` (lists add `"meta": { "count": n }`).
 - **Error shape** (single envelope, every endpoint): `{ "error": { "code": "VALIDATION", "message": "Human sentence.", "fields": { "email": "Enter a valid email" } } }`
   Codes: `VALIDATION` 400 · `UNAUTHORIZED` 401 · `FORBIDDEN` 403 · `NOT_FOUND` 404 · `RATE_LIMITED` 429 · `SERVER` 500.
@@ -64,7 +65,7 @@ Body: `{ read?: boolean, replied?: boolean }` — **Features:** mark read/replie
 
 ## 4. Auth & session
 
-Login/logout themselves are **Supabase Auth** calls from the browser (no custom password code, ever — the current “any password works” preview is deleted in this phase).
+Login = `POST /api/v1/auth/verify` with the one-time password; Fastify checks it against `ADMIN_OTP` in its `.env` (timing-safe compare) and sets an httpOnly session cookie. Logout = `POST /api/v1/auth/logout` (clears the cookie). No user table, no sign-ups — full flow in BACKEND_SCOPE.md §4. The current “any password works” preview is deleted in this phase.
 
 ### `GET /api/auth/session` — public
 **Features:** returns `{ "data": { "authenticated": bool, "email": string|null } }` so the navbar/admin UI can render the right state without exposing keys or user tables.

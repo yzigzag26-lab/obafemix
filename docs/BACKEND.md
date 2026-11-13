@@ -1,6 +1,8 @@
 # OBAFEMIX — Backend Architecture
 
-> Status: **blueprint (not yet built)**. Today the site is fully static: admin edits live in
+> Status: **scope locked — see `BACKEND_SCOPE.md` for the binding decisions**
+> (Next.js 16 + Fastify service in `apps/api`, Supabase as Postgres-only, Swagger UI at `/docs`,
+> admin auth = one-time password from `.env`). Where this doc says 'Next.js API routes', read 'Fastify routes'. Today the site is fully static: admin edits live in
 > `localStorage`, the contact form uses `mailto:`, and the AI assistant answers on-device.
 > This document is the agreed structure for the backend phase. Every endpoint is specified in
 > [`docs/API.md`](./API.md) (human) and [`docs/openapi.yaml`](./openapi.yaml) (machine-readable).

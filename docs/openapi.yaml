@@ -6,7 +6,8 @@ info:
     Specification only — not yet implemented. Human docs: docs/API.md.
     All errors use the envelope { error: { code, message, fields? } }.
 servers:
-  - url: /api
+  - url: http://localhost:4000/api/v1
+    description: Fastify service (local). In production the generated spec at /docs/json is authoritative.
 security: []   # public by default; admin ops require the supabaseSession cookie
 components:
   securitySchemes:
@@ -14,7 +15,7 @@ components:
       type: apiKey
       in: cookie
       name: sb-access-token
-      description: Supabase Auth JWT cookie; role=admin required for writes.
+      description: Session cookie issued by POST /auth/verify (one-time password from server .env); role=admin required for writes.
   schemas:
     Error:
       type: object
