@@ -8,6 +8,7 @@ function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reading matchMedia once on mount (SSR-safe)
     setReduced(mq.matches);
     const fn = (e: MediaQueryListEvent) => setReduced(e.matches);
     mq.addEventListener("change", fn);
@@ -27,10 +28,10 @@ function useClock() {
 function useTyped(reduced: boolean) {
   const [text, setText] = useState(site.roles[0]);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reduced-motion pins the first role
     if (reduced) { setText(site.roles[0]); return; }
     let role = 0, char = site.roles[0].length, deleting = true, timer: ReturnType<typeof setTimeout>;
     const step = () => {
-      const current = site.roles[role];
       if (deleting) { char--; if (char === 0) { deleting = false; role = (role + 1) % site.roles.length; } }
       else { char++; if (char === site.roles[role].length) deleting = true; }
       setText(site.roles[role].slice(0, Math.max(char, 0)));

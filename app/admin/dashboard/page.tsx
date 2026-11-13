@@ -51,6 +51,7 @@ export default function Dashboard() {
         if (!Array.isArray(parsed.projects) && parsed.project) {
           merged.projects = [{ ...defaultProject, title: parsed.project.name || defaultProject.title, liveUrl: parsed.project.url || defaultProject.liveUrl, description: parsed.project.description || defaultProject.description, contributions: String(parsed.project.contributions || "").split(",").map((s: string) => s.trim()).filter(Boolean) }];
         }
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrating from this browser's localStorage after mount (SSR-safe)
         setDraft(merged);
       }
     } catch { /* ignore */ }

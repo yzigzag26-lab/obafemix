@@ -14,7 +14,7 @@ export default function Privacy() {
         <h2 className="font-display text-xl font-bold text-white">Browser storage</h2>
         <p>The admin preview uses <code>sessionStorage</code> (login flag, cleared when the tab closes) and <code>localStorage</code> (admin draft labelled <code>obafemix.adminDraft</code>) entirely inside your browser. Nothing is uploaded.</p>
         <h2 className="font-display text-xl font-bold text-white">External links</h2>
-        <p>Links to GitHub, Google Maps and WAZOBIA are governed by those services' own policies.</p>
+        <p>Links to GitHub, Google Maps and WAZOBIA are governed by those services&apos; own policies.</p>
         <h2 className="font-display text-xl font-bold text-white">Contact</h2>
         <p>Questions: <a className="text-violet-300 underline" href="mailto:yzigzag26@gmail.com">yzigzag26@gmail.com</a></p>
       </div>

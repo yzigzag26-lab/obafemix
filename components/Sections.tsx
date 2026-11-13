@@ -1,8 +1,7 @@
 import Image from "next/image";
-import { BookOpen, Code2, Cpu, Globe2, GraduationCap, Heart, Lightbulb, Rocket, Target, Wrench, ExternalLink, Github } from "lucide-react";
+import { BookOpen, Code2, Cpu, Globe2, GraduationCap, Heart, Lightbulb, Rocket, Target, Wrench } from "lucide-react";
 import Logo from "./Logo";
 import Reveal from "./Reveal";
-import { site } from "@/lib/site";
 
 export function About() {
   const tiles = [

@@ -41,6 +41,7 @@ export default function SkillsClient() {
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrating from this browser's localStorage after mount (SSR-safe)
     setAnimate(false);
     const t = setTimeout(() => setAnimate(true), 60);
     return () => clearTimeout(t);

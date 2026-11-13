@@ -69,6 +69,7 @@ export default function ProjectsClient() {
       const raw = localStorage.getItem("obafemix.adminDraft");
       if (!raw) return;
       const draft = JSON.parse(raw);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrating from this browser's localStorage after mount (SSR-safe)
       if (Array.isArray(draft.projects) && draft.projects.length) setProjects(draft.projects);
     } catch { /* keep defaults */ }
   }, []);
