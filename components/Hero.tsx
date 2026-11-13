@@ -47,12 +47,33 @@ export default function Hero() {
   const reduced = usePrefersReducedMotion();
   const time = useClock();
   const role = useTyped(reduced);
+  // First-load fix: the 1.3 MB video must never compete with first paint.
+  // The 31 KB poster (priority image below) IS the first paint; the video
+  // only starts downloading once the page has loaded / the browser is idle,
+  // then fades in over the poster when it can actually play.
+  const [loadVideo, setLoadVideo] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  useEffect(() => {
+    if (reduced) return;
+    let idle: number | undefined;
+    const begin = () => {
+      const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+      if (ric) idle = ric(() => setLoadVideo(true), { timeout: 1200 });
+      else idle = window.setTimeout(() => setLoadVideo(true), 400);
+    };
+    if (document.readyState === "complete") begin();
+    else window.addEventListener("load", begin, { once: true });
+    return () => {
+      window.removeEventListener("load", begin);
+      if (idle) window.clearTimeout(idle);
+    };
+  }, [reduced]);
   return (
     <section id="top" className="relative flex min-h-[100svh] items-center overflow-hidden">
-      {reduced ? (
-        <Image src="/assets/obafemix.png" alt="" fill priority className="pointer-events-none object-cover object-[50%_30%]" aria-hidden />
-      ) : (
-        <video className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[50%_30%]" autoPlay muted loop playsInline preload="metadata" poster="/assets/obafemix.png" aria-hidden="true">
+      {/* Poster = LCP: 31 KB, preloaded via priority, paints immediately on every device */}
+      <Image src="/assets/hero-poster.webp" alt="" fill priority fetchPriority="high" sizes="100vw" className="pointer-events-none object-cover object-[50%_30%]" aria-hidden />
+      {!reduced && loadVideo && (
+        <video onCanPlay={() => setVideoReady(true)} className={`pointer-events-none absolute inset-0 h-full w-full object-cover object-[50%_30%] transition-opacity duration-700 ${videoReady ? "opacity-100" : "opacity-0"}`} autoPlay muted loop playsInline preload="auto" poster="/assets/hero-poster.webp" aria-hidden="true">
           <source src="/assets/hero.mp4" type="video/mp4" />
         </video>
       )}
@@ -61,7 +82,7 @@ export default function Hero() {
       <div aria-hidden="true" className="noise-overlay absolute inset-0" />
       <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-28 pt-36 sm:px-6">
         <p className="eyebrow">{"// HELLO, I'M"}</p>
-        <h1 className="font-display mt-4 font-extrabold tracking-tight text-white" style={{ fontSize: "clamp(3.6rem,13vw,7.2rem)", lineHeight: 0.95, textShadow: "0 0 60px rgba(139,92,246,.55)" }}>OBAFEMIX</h1>
+        <h1 className="font-display mt-4 font-extrabold tracking-tight text-white" style={{ fontSize: "clamp(2.75rem,13vw,7.2rem)", lineHeight: 0.95, textShadow: "0 0 60px rgba(139,92,246,.55)" }}>OBAFEMIX</h1>
         <p className="mt-5 font-mono text-lg text-violet-200 sm:text-xl">&gt; {role}<span className="animate-blink">|</span></p>
         <h2 className="font-display mt-6 max-w-2xl text-3xl font-bold leading-tight sm:text-4xl">I build solutions for a <span className="text-gradient">better tomorrow.</span></h2>
         <p className="mt-4 max-w-xl leading-relaxed text-white/70">{site.description}</p>
