@@ -1,0 +1,48 @@
+name: Keep Render services awake
+
+# Render free Web Services spin down after ~15 minutes without traffic.
+# Pinging every 10 minutes leaves a ~5-minute safety buffer before the
+# idle limit is reached, so the API (and site, if deployed as a Web
+# Service) never sleeps. GitHub cron can drift a few minutes under load —
+# that buffer is exactly why 10, not 14, is the default here.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API health endpoint
+        env:
+          # Set repo variable API_HEALTH_URL after the first Render deploy,
+          # e.g. https://obafemix-api.onrender.com/api/v1/health
+          API_HEALTH_URL: ${{ vars.API_HEALTH_URL }}
+        run: |
+          if [ -z "$API_HEALTH_URL" ]; then
+            echo "::warning::API_HEALTH_URL repo variable not set yet — skipping (set it after the first Render deploy)."
+            exit 0
+          fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 "$API_HEALTH_URL" || echo "000")
+          echo "API health -> HTTP $code"
+          # A cold service can take ~50s to wake; one retry covers the wake-up request itself.
+          if [ "$code" = "000" ] || [ "$code" -ge 500 ]; then
+            sleep 20
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 "$API_HEALTH_URL" || echo "000")
+            echo "Retry -> HTTP $code"
+          fi
+      - name: Ping site (only if it is a Render Web Service, not a Static Site)
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          if [ -z "$SITE_URL" ]; then
+            echo "SITE_URL not set — skipping (static sites do not sleep)."
+            exit 0
+          fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 "$SITE_URL" || echo "000")
+          echo "Site -> HTTP $code"

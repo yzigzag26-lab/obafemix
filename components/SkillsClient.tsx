@@ -31,13 +31,34 @@ const STATS = [
 ];
 
 export default function SkillsClient() {
+  const [skills, setSkills] = useState<Skill[]>(SKILLS);
   const [filter, setFilter] = useState<(typeof SKILL_FILTERS)[number]>("All");
+
+  // Database first (percentages edited in admin show up here); static list is the offline fallback.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { API_BASE } = await import("@/lib/api");
+        const res = await fetch(`${API_BASE}/skills`);
+        if (!res.ok) return;
+        const j = await res.json();
+        if (!cancelled && Array.isArray(j.data) && j.data.length) {
+          setSkills(j.data.map((s: Record<string, unknown>) => ({
+            id: String(s.id), name: String(s.name), percent: Number(s.percent),
+            category: String(s.category), color: String(s.color ?? "#a78bfa"), featured: Boolean(s.featured),
+          })));
+        }
+      } catch { /* keep static skills */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const [animate, setAnimate] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
 
   const visible = useMemo(
-    () => (filter === "All" ? SKILLS.filter((s) => s.featured) : SKILLS.filter((s) => s.category === filter)),
-    [filter]
+    () => (filter === "All" ? skills.filter((s) => s.featured) : skills.filter((s) => s.category === filter)),
+    [filter, skills]
   );
 
   useEffect(() => {
@@ -93,7 +114,7 @@ export default function SkillsClient() {
                 );
               })}
             </div>
-            {filter === "All" && <p className="mt-2.5 text-xs text-white/60">Showing {visible.length} of {SKILLS.length} — select a category to explore everything.</p>}
+            {filter === "All" && <p className="mt-2.5 text-xs text-white/60">Showing {visible.length} of {skills.length} — select a category to explore everything.</p>}
             {filter !== "All" && <p className="mt-2.5 text-xs text-white/60">Showing {visible.length} in {filter}.</p>}
 
             <div ref={gridRef} className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">

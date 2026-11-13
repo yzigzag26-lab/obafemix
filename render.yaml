@@ -1,0 +1,47 @@
+# Render Blueprint — OBAFEMIX
+# Docs: docs/BACKEND_SCOPE.md (hosting section). Free Web Services sleep
+# after ~15 min idle; .github/workflows/keep-alive.yml pings every 10 min.
+services:
+  # ---- Fastify API (built in the backend phase; rootDir arrives with it) ----
+  - type: web
+    name: obafemix-api
+    runtime: node
+    plan: free
+    region: frankfurt        # closest free region to the Supabase project (eu-west-1) and NG traffic
+    rootDir: apps/api
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL          # Supabase Postgres (project ref: hryxsusauoiyzlorpcys)
+        sync: false                # paste in Render dashboard — never commit secrets
+      - key: ADMIN_OTP_HASH        # argon2/bcrypt hash of the admin one-time password
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: SESSION_TTL_MINUTES
+        value: "60"
+      - key: SITE_ORIGIN           # the deployed Next.js site origin, for CORS
+        sync: false
+      - key: NODE_ENV
+        value: production
+
+  # ---- Next.js 16 site ----
+  # Preferred: type "Static Site" (never sleeps, free). If SSR is ever
+  # needed, switch to a Web Service and set SITE_URL for the keep-alive.
+  - type: web
+    name: obafemix-web
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NEXT_PUBLIC_API_URL   # e.g. https://obafemix-api.onrender.com/api/v1
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: NODE_ENV
+        value: production

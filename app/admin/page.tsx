@@ -9,11 +9,21 @@ const modules = ["Overview & build checklist", "About Me editor", "Professional 
 export default function AdminLogin() {
   const router = useRouter();
   const [pw, setPw] = useState(""); const [show, setShow] = useState(false); const [error, setError] = useState("");
-  const submit = (e: FormEvent) => {
+  const [busy, setBusy] = useState(false);
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!pw.trim()) { setError("Please enter a password to continue."); return; }
-    sessionStorage.setItem("obafemixAdminPreview", "1");
-    router.push("/admin/dashboard");
+    setBusy(true); setError("");
+    try {
+      const { apiFetch } = await import("@/lib/api");
+      const res = await apiFetch("/auth/verify", { method: "POST", body: JSON.stringify({ password: pw }) });
+      if (res.ok) { router.push("/admin/dashboard"); return; }
+      if (res.status === 401) setError("Incorrect password. Try again.");
+      else if (res.status === 429) setError("Too many attempts — wait 15 minutes and try again.");
+      else setError("The API could not check the password right now. Try again shortly.");
+    } catch {
+      setError("Cannot reach the API. Make sure the backend is running (local: apps/api on :4000 — or the Render deploy) and NEXT_PUBLIC_API_URL is correct.");
+    } finally { setBusy(false); }
   };
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
@@ -33,17 +43,17 @@ export default function AdminLogin() {
           <div className="flex items-center gap-2 lg:hidden"><Logo size={36} /><span className="font-display font-extrabold">OBAFEMIX</span></div>
           <p className="eyebrow mt-2">{"// ADMIN"}</p>
           <h2 className="font-display mt-2 text-3xl font-extrabold">Administrator Login</h2>
-          <div role="note" className="mt-5 rounded-xl border border-amber-300/30 bg-amber-500/10 p-3.5 text-sm text-amber-200">Frontend preview. No real authentication is wired yet — any password opens the dashboard, nothing is verified, nothing leaves this browser. Real auth (Supabase) lands in the backend phase.</div>
+          <div role="note" className="mt-5 rounded-xl border border-amber-300/30 bg-amber-500/10 p-3.5 text-sm text-amber-200">Real authentication: your password is checked by the API against the one-time password stored in the server&apos;s .env (never in this browser). A short-lived httpOnly session cookie is issued on success.</div>
           <label htmlFor="pw" className="mt-6 block text-sm font-medium">Password</label>
           <div className="relative mt-1.5">
             <Lock size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
-            <input id="pw" type={show ? "text" : "password"} value={pw} onChange={e => setPw(e.target.value)} aria-invalid={!!error} placeholder="Enter any password (preview)" className="input-dark !pl-10 !pr-11" autoComplete="current-password" />
+            <input id="pw" type={show ? "text" : "password"} value={pw} onChange={e => setPw(e.target.value)} aria-invalid={!!error} placeholder="Enter the admin password" className="input-dark !pl-10 !pr-11" autoComplete="current-password" />
             <button type="button" onClick={() => setShow(!show)} aria-label={show ? "Hide password" : "Show password"} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white">{show ? <EyeOff size={18} /> : <Eye size={18} />}</button>
           </div>
           {error && <p role="alert" className="mt-2 text-sm text-red-300">{error}</p>}
-          <button type="submit" className="btn-primary-glow shimmer-sweep mt-6 w-full rounded-full px-6 py-3.5 font-semibold">Unlock Dashboard</button>
+          <button type="submit" className="btn-primary-glow shimmer-sweep mt-6 w-full rounded-full px-6 py-3.5 font-semibold" disabled={busy}>{busy ? "Checking…" : "Unlock Dashboard"}</button>
           <Link href="/" className="mt-5 block text-center text-sm text-violet-300 hover:text-violet-200">← Back to portfolio</Link>
-          <p className="mt-4 text-center text-xs text-white/40">Session-only preview flag — closing the tab signs you out. No password is stored anywhere.</p>
+          <p className="mt-4 text-center text-xs text-white/40">Session lasts 60 minutes. The password never leaves the server check — nothing is stored in this browser.</p>
         </form>
       </div>
     </main>
