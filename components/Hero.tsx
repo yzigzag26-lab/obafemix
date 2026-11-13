@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Github, Linkedin, MapPin, ArrowRight, Mail } from "lucide-react";
 import { site } from "@/lib/site";
@@ -53,12 +53,26 @@ export default function Hero() {
   // then fades in over the poster when it can actually play.
   const [loadVideo, setLoadVideo] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const videoWrapRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- screen-size pick once on mount
+    setIsMobile(window.matchMedia("(max-width: 767px)").matches);
+  }, []);
+  // If autoplay was blocked, the first tap/scroll anywhere starts it.
+  useEffect(() => {
+    if (!loadVideo || videoReady) return;
+    const kick = () => videoWrapRef.current?.querySelector("video")?.play().catch(() => {});
+    window.addEventListener("touchstart", kick, { passive: true, once: true });
+    window.addEventListener("pointerdown", kick, { once: true });
+    return () => { window.removeEventListener("touchstart", kick); window.removeEventListener("pointerdown", kick); };
+  }, [loadVideo, videoReady]);
   useEffect(() => {
     if (reduced) return;
     let idle: number | undefined;
     const begin = () => {
       const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
-      if (ric) idle = ric(() => setLoadVideo(true), { timeout: 1200 });
+      if (ric) idle = ric(() => setLoadVideo(true), { timeout: 600 });
       else idle = window.setTimeout(() => setLoadVideo(true), 400);
     };
     if (document.readyState === "complete") begin();
@@ -69,12 +83,23 @@ export default function Hero() {
     };
   }, [reduced]);
   return (
-    <section id="top" className="relative flex min-h-[100svh] items-center overflow-hidden">
+    <section id="top" ref={videoWrapRef} className="relative flex min-h-[100svh] items-center overflow-hidden">
       {/* Poster = LCP: 31 KB, preloaded via priority, paints immediately on every device */}
       <Image src="/assets/hero-poster.webp" alt="" fill priority fetchPriority="high" sizes="100vw" className="pointer-events-none object-cover object-[50%_30%]" aria-hidden />
       {!reduced && loadVideo && (
-        <video onCanPlay={() => setVideoReady(true)} className={`pointer-events-none absolute inset-0 h-full w-full object-cover object-[50%_30%] transition-opacity duration-700 ${videoReady ? "opacity-100" : "opacity-0"}`} autoPlay muted loop playsInline preload="auto" poster="/assets/hero-poster.webp" aria-hidden="true">
-          <source src="/assets/hero.mp4" type="video/mp4" />
+        <video
+          ref={(el) => {
+            // Safari/iOS fix: React's `muted` attr alone is not enough, and a
+            // dynamically-inserted <video autoPlay> often never starts on
+            // phones. Set the muted *property* and call play() explicitly.
+            if (el) { el.muted = true; el.defaultMuted = true; el.play().catch(() => {}); }
+          }}
+          onCanPlay={() => setVideoReady(true)}
+          onError={() => setVideoReady(false)}
+          className={`pointer-events-none absolute inset-0 h-full w-full object-cover object-[50%_30%] transition-opacity duration-700 ${videoReady ? "opacity-100" : "opacity-0"}`}
+          autoPlay muted loop playsInline preload="auto" poster="/assets/hero-poster.webp" aria-hidden="true"
+        >
+          <source src={isMobile ? "/assets/hero-mobile.mp4" : "/assets/hero.mp4"} type="video/mp4" />
         </video>
       )}
       <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-[#05010f] via-[#05010f]/62 to-transparent" />
