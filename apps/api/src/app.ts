@@ -12,6 +12,7 @@ import {
 } from "fastify-type-provider-zod";
 import { loadEnv, type Env } from "./config/env.js";
 import { healthRoutes } from "./routes/health.js";
+import { publicRoutes } from "./routes/public.js";
 
 /**
  * Builds the Fastify app (no listening here — server.ts does that,
@@ -68,7 +69,7 @@ export async function buildApp(env: Env = loadEnv()): Promise<FastifyInstance> {
     }
     const status = err.statusCode ?? 500;
     return reply.status(status).send({
-      error: { code: status === 500 ? "SERVER" : "ERROR", message: err.message ?? "Unexpected error" },
+      error: { code: status === 500 ? "SERVER" : "ERROR", message: status === 500 ? "Unexpected error" : (err.message ?? "Unexpected error") },
     });
   });
 
@@ -76,6 +77,7 @@ export async function buildApp(env: Env = loadEnv()): Promise<FastifyInstance> {
   await app.register(
     async (v1) => {
       await v1.register(healthRoutes);
+      await v1.register(publicRoutes);
       // Next steps, one file per resource in src/routes/:
       //   site.ts · projects.ts · skills.ts · contact.ts · auth.ts · admin-media.ts · ai.ts
     },
