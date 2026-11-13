@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Send, Sparkles, User } from "lucide-react";
+import type { PointerEvent as ReactPointerEvent } from "react";
+import { Grip, RotateCcw, Send, User, X } from "lucide-react";
 import { site } from "@/lib/site";
 import { SKILLS } from "@/lib/skills";
 
@@ -22,6 +23,12 @@ export function GeminiStar({ size = 28, className = "" }: { size?: number; class
 }
 
 type Msg = { from: "bot" | "user"; text: string };
+type Pos = { x: number; y: number };
+
+const clamp = (p: Pos, w: number, h: number): Pos => ({
+  x: Math.min(Math.max(p.x, 8), Math.max(8, window.innerWidth - w - 8)),
+  y: Math.min(Math.max(p.y, 8), Math.max(8, window.innerHeight - h - 8)),
+});
 
 const WELCOME: Msg = { from: "bot", text: "Hi! I'm the OBAFEMIX site assistant. Ask me about OBAFEMIX, WAZOBIA, his skills, projects — or how to get in touch." };
 const QUICK = ["Tell me about WAZOBIA", "What are his top skills?", "How can I contact him?", "What does he build?"];
@@ -50,20 +57,75 @@ function answer(raw: string): string {
 }
 
 /**
- * AI assistant — in-flow section (NOT floating, never overlaps content).
- * Sits between Contact and Footer; clicking the Gemini star expands
- * the chat interface inline inside the card.
+ * AI assistant — movable pop-up.
+ * Circular launcher (Gemini star locked dead-center in the circle):
+ * drag it anywhere; a click (not a drag) pops the chat window open.
+ * The chat window itself is movable by its header. Positions clamp
+ * to the viewport so the circle/star never get pushed off-screen.
  */
 export default function AiChat() {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
+  const [btnPos, setBtnPos] = useState<Pos | null>(null);
+  const [panelPos, setPanelPos] = useState<Pos | null>(null);
+  const drag = useRef<{ mode: "btn" | "panel"; startX: number; startY: number; orig: Pos; moved: boolean; pos: Pos } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("obafemix.aiChatPos");
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrating saved launcher position from localStorage after mount (SSR-safe)
+      if (raw) { const p = JSON.parse(raw); if (typeof p?.x === "number") setBtnPos(p); }
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     if (open) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [msgs, typing, open]);
+
+  const beginDrag = (mode: "btn" | "panel", e: ReactPointerEvent) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    const fallback: Pos = mode === "btn"
+      ? { x: window.innerWidth - 80, y: window.innerHeight - 80 }
+      : { x: window.innerWidth - 404, y: window.innerHeight - 560 };
+    const orig = (mode === "btn" ? btnPos : panelPos) ?? fallback;
+    if (mode === "btn" && !btnPos) setBtnPos(orig);
+    if (mode === "panel" && !panelPos) setPanelPos(orig);
+    drag.current = { mode, startX: e.clientX, startY: e.clientY, orig, moved: false, pos: orig };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  const startBtnDrag = (e: ReactPointerEvent) => beginDrag("btn", e);
+  const startPanelDrag = (e: ReactPointerEvent) => beginDrag("panel", e);
+
+  const onDragMove = (e: ReactPointerEvent) => {
+    const d = drag.current; if (!d) return;
+    const dx = e.clientX - d.startX, dy = e.clientY - d.startY;
+    if (Math.abs(dx) + Math.abs(dy) > 6) d.moved = true;
+    if (!d.moved) return;
+    const w = d.mode === "btn" ? 64 : 388, h = d.mode === "btn" ? 64 : 532;
+    const next = clamp({ x: d.orig.x + dx, y: d.orig.y + dy }, w, h);
+    d.pos = next;
+    if (d.mode === "btn") setBtnPos(next); else setPanelPos(next);
+  };
+
+  const endDrag = () => {
+    const d = drag.current; drag.current = null;
+    if (!d) return;
+    if (d.mode !== "btn") return;
+    if (d.moved) {
+      try { localStorage.setItem("obafemix.aiChatPos", JSON.stringify(d.pos)); } catch { /* ignore */ }
+    } else {
+      if (!panelPos) setPanelPos(clamp({ x: window.innerWidth - 404, y: window.innerHeight - 560 }, 388, 532));
+      setOpen(true);
+    }
+  };
+
+  const resetPos = () => {
+    setBtnPos(null); setPanelPos(null);
+    try { localStorage.removeItem("obafemix.aiChatPos"); } catch { /* ignore */ }
+  };
 
   const send = (text: string) => {
     const t = text.trim(); if (!t || typing) return;
@@ -74,72 +136,93 @@ export default function AiChat() {
   };
 
   return (
-    <section id="assistant" aria-label="AI assistant" className="relative py-16">
-      <div className="mx-auto max-w-3xl px-4 sm:px-6">
-        <div className="glass overflow-hidden rounded-3xl">
-          {/* Header — click the Gemini star (or anywhere here) to open/close the chat */}
-          <button
-            type="button"
-            onClick={() => setOpen((o) => !o)}
-            aria-expanded={open}
-            aria-controls="ai-chat-panel"
-            className="flex w-full items-center gap-4 px-6 py-5 text-left transition hover:bg-violet-500/10"
+    <>
+      {/* ===== Movable circular launcher — Gemini star locked at the circle center ===== */}
+      {!open && (
+        <button
+          type="button"
+          aria-label="Open AI assistant — drag to move, click to chat"
+          title="Drag me anywhere · Click to chat"
+          onPointerDown={startBtnDrag}
+          onPointerMove={onDragMove}
+          onPointerUp={endDrag}
+          className="btn-primary-glow fixed z-50 block h-16 w-16 cursor-grab touch-none rounded-full active:cursor-grabbing"
+          style={btnPos ? { left: btnPos.x, top: btnPos.y } : { right: 16, bottom: 16 }}
+        >
+          {/* Centering layer: absolute inset-0 grid — the star is the only
+              centered item, so it can never drift off the circle's center. */}
+          <span aria-hidden className="pointer-events-none absolute inset-0 grid place-items-center">
+            <GeminiStar size={30} className="block shrink-0 drop-shadow-[0_0_10px_rgba(155,92,245,0.65)]" />
+          </span>
+          <span aria-hidden className="absolute right-0.5 top-0.5 h-3 w-3 rounded-full border-2 border-[#0d0724] bg-emerald-400" />
+          <span className="sr-only">AI assistant</span>
+        </button>
+      )}
+
+      {/* ===== Movable chat window ===== */}
+      {open && (
+        <section
+          aria-label="AI assistant chat"
+          className="glass fixed z-50 flex h-[min(532px,calc(100dvh-24px))] w-[min(388px,calc(100vw-24px))] flex-col overflow-hidden rounded-3xl shadow-[0_30px_80px_rgba(0,0,0,.55)]"
+          style={panelPos ? { left: panelPos.x, top: panelPos.y } : { right: 12, bottom: 12 }}
+        >
+          <header
+            onPointerDown={startPanelDrag}
+            onPointerMove={onDragMove}
+            onPointerUp={endDrag}
+            className="flex cursor-grab touch-none items-center gap-3 border-b border-violet-300/15 bg-violet-600/20 px-4 py-3 active:cursor-grabbing"
           >
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-violet-300/20 bg-[#0d0724] shadow-[0_0_28px_rgba(95,123,240,0.35)]">
-              <GeminiStar size={30} className={open ? "" : "animate-pulse"} />
+            <span className="relative block h-11 w-11 shrink-0 rounded-full border border-violet-300/25 bg-[#0d0724]">
+              <span aria-hidden className="pointer-events-none absolute inset-0 grid place-items-center">
+                <GeminiStar size={22} className="block shrink-0" />
+              </span>
             </span>
             <span className="min-w-0 flex-1">
-              <span className="font-display block text-lg font-bold text-white">
-                Ask the <span className="text-gradient">AI Assistant</span>
-              </span>
-              <span className="block text-sm text-white/55">
-                Powered by the Gemini star — ask about OBAFEMIX, WAZOBIA, skills & projects.
-              </span>
-              <span className="mt-1 block text-[11px] font-medium text-emerald-300">● Online — answers from this site</span>
+              <span className="font-display block truncate text-sm font-bold">OBAFEMIX Assistant</span>
+              <span className="block text-[11px] text-emerald-300">● Online — answers from this site</span>
             </span>
-            <ChevronDown aria-hidden className={`h-5 w-5 shrink-0 text-violet-300 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
-          </button>
+            <Grip className="h-4 w-4 shrink-0 text-white/40" aria-hidden />
+            <button type="button" onClick={resetPos} aria-label="Reset position" title="Reset position" className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"><RotateCcw className="h-4 w-4" /></button>
+            <button type="button" onClick={() => setOpen(false)} aria-label="Close chat" className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"><X className="h-5 w-5" /></button>
+          </header>
 
-          {/* Chat interface — expands inline, in the page flow */}
-          {open && (
-            <div id="ai-chat-panel" className="border-t border-violet-300/15">
-              <div ref={scrollRef} className="h-[380px] space-y-3 overflow-y-auto px-5 py-5 sm:px-6" aria-live="polite">
-                {msgs.map((m, i) => (
-                  <div key={i} className={`flex items-end gap-2 ${m.from === "user" ? "flex-row-reverse" : ""}`}>
-                    <span aria-hidden className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${m.from === "bot" ? "border border-violet-300/20 bg-[#0d0724]" : "bg-white/10 text-white/70"}`}>
-                      {m.from === "bot" ? <GeminiStar size={14} /> : <User className="h-3.5 w-3.5" />}
-                    </span>
-                    <p className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${m.from === "bot" ? "rounded-bl-md border border-violet-300/15 bg-[#0d0724]/90 text-white/85" : "btn-primary-glow rounded-br-md text-white"}`}>{m.text}</p>
-                  </div>
-                ))}
-                {typing && (
-                  <div className="flex items-end gap-2">
-                    <span aria-hidden className="flex h-7 w-7 items-center justify-center rounded-full border border-violet-300/20 bg-[#0d0724]"><GeminiStar size={14} /></span>
-                    <p className="rounded-2xl rounded-bl-md border border-violet-300/15 bg-[#0d0724]/90 px-4 py-3" aria-label="Assistant is typing">
-                      <span className="flex gap-1">{[0, 1, 2].map((d) => <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-300" style={{ animationDelay: `${d * 150}ms` }} />)}</span>
-                    </p>
-                  </div>
-                )}
+          <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
+            {msgs.map((m, i) => (
+              <div key={i} className={`flex items-end gap-2 ${m.from === "user" ? "flex-row-reverse" : ""}`}>
+                <span aria-hidden className={`relative block h-7 w-7 shrink-0 rounded-full ${m.from === "bot" ? "border border-violet-300/20 bg-[#0d0724]" : "bg-white/10 text-white/70"}`}>
+                  {m.from === "bot"
+                    ? <span className="pointer-events-none absolute inset-0 grid place-items-center"><GeminiStar size={14} className="block shrink-0" /></span>
+                    : <span className="absolute inset-0 grid place-items-center"><User className="h-3.5 w-3.5" /></span>}
+                </span>
+                <p className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${m.from === "bot" ? "rounded-bl-md border border-violet-300/15 bg-[#0d0724]/90 text-white/85" : "btn-primary-glow rounded-br-md text-white"}`}>{m.text}</p>
               </div>
-
-              <div className="flex gap-2 overflow-x-auto px-5 pb-2 sm:px-6">
-                {QUICK.map((q) => (
-                  <button key={q} type="button" onClick={() => send(q)} className="chip shrink-0 text-xs transition hover:border-violet-300/60 hover:bg-violet-500/20">{q}</button>
-                ))}
+            ))}
+            {typing && (
+              <div className="flex items-end gap-2">
+                <span aria-hidden className="relative block h-7 w-7 rounded-full border border-violet-300/20 bg-[#0d0724]">
+                  <span className="pointer-events-none absolute inset-0 grid place-items-center"><GeminiStar size={14} className="block shrink-0" /></span>
+                </span>
+                <p className="rounded-2xl rounded-bl-md border border-violet-300/15 bg-[#0d0724]/90 px-4 py-3" aria-label="Assistant is typing">
+                  <span className="flex gap-1">{[0, 1, 2].map((d) => <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-300" style={{ animationDelay: `${d * 150}ms` }} />)}</span>
+                </p>
               </div>
+            )}
+          </div>
 
-              <form className="flex gap-2 border-t border-violet-300/15 p-4" onSubmit={(e) => { e.preventDefault(); send(input); }}>
-                <label htmlFor="ai-input" className="sr-only">Ask the assistant</label>
-                <input id="ai-input" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about OBAFEMIX…" className="input-dark !rounded-full" autoComplete="off" />
-                <button type="submit" disabled={!input.trim() || typing} aria-label="Send message" className="btn-primary-glow flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full disabled:opacity-40"><Send className="h-[18px] w-[18px]" /></button>
-              </form>
-              <p className="flex items-center justify-center gap-1.5 px-4 pb-4 text-center text-[10px] leading-relaxed text-white/40">
-                <Sparkles className="h-3 w-3 shrink-0" /> On-device assistant — answers from this site&apos;s content, nothing is sent to a server.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    </section>
+          <div className="flex gap-2 overflow-x-auto px-4 pb-2">
+            {QUICK.map((q) => (
+              <button key={q} type="button" onClick={() => send(q)} className="chip shrink-0 text-xs transition hover:border-violet-300/60 hover:bg-violet-500/20">{q}</button>
+            ))}
+          </div>
+
+          <form className="flex gap-2 border-t border-violet-300/15 p-3" onSubmit={(e) => { e.preventDefault(); send(input); }}>
+            <label htmlFor="ai-input" className="sr-only">Ask the assistant</label>
+            <input id="ai-input" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about OBAFEMIX…" className="input-dark !rounded-full" autoComplete="off" />
+            <button type="submit" disabled={!input.trim() || typing} aria-label="Send message" className="btn-primary-glow flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full disabled:opacity-40"><Send className="h-[18px] w-[18px]" /></button>
+          </form>
+          <p className="px-4 pb-3 text-center text-[10px] leading-relaxed text-white/40">On-device assistant — answers from this site&apos;s content, nothing is sent to a server. Drag the header to move me.</p>
+        </section>
+      )}
+    </>
   );
 }
