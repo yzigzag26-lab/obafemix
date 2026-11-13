@@ -46,7 +46,7 @@ function answer(raw: string): string {
   if (/(project|build|work|portfolio)/.test(q))
     return "He builds complete web applications — frontends connected to APIs, plus the backend systems behind them — always turning ideas into working software, not prototypes. His featured project is WAZOBIA (React · TypeScript · Vercel). The Projects section shows every project in detail, and he can add more from /admin.";
   if (/(who|about|obafemix|linuxboss|developer)/.test(q))
-    return "OBAFEMIX is a student & full-stack developer based in Lagos State, Nigeria, and Founder & Primary Developer of WAZOBIA. “Linuxboss” is what the tech streets call him — OBAFEMIX is the name on everything he ships. His headline: “I build solutions for a better tomorrow.”";
+    return "OBAFEMIX is a student & full-stack developer based in Lagos State, Nigeria. “Linuxboss” is what the tech streets call him — OBAFEMIX is the name on everything he ships. His headline: “I build solutions for a better tomorrow.”";
   if (/(where|location|lagos|nigeria)/.test(q))
     return "He's based in Lagos State, Nigeria (WAT timezone) — and available for remote collaboration anywhere. Use the Let's Connect button or the contact form to start a conversation.";
   if (/(hello|hi|hey|yo)\b/.test(q))
