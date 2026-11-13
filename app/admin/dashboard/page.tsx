@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
@@ -40,8 +40,39 @@ export default function Dashboard() {
   const [customStack, setCustomStack] = useState("");
   const [imageMode, setImageMode] = useState<string>(emptyProject.image);
 
+  const [apiProjectsLoaded, setApiProjectsLoaded] = useState(false);
+  const serverProjectIds = useRef<string[]>([]);
+
   useEffect(() => {
-    if (sessionStorage.getItem("obafemixAdminPreview") !== "1") { router.replace("/admin"); return; }
+    // Real guard: the API session cookie decides, not a browser flag.
+    (async () => {
+      try {
+        const { apiFetch } = await import("@/lib/api");
+        const s = await apiFetch("/auth/session");
+        const sj = s.ok ? await s.json() : null;
+        if (!sj?.data?.authenticated) { router.replace("/admin"); return; }
+        // Projects come from the database now (public read endpoint).
+        const pr = await apiFetch("/projects");
+        if (pr.ok) {
+          const pj = await pr.json();
+          if (Array.isArray(pj.data) && pj.data.length) {
+            const mapped = pj.data.map((x: Record<string, unknown>) => ({
+              id: String(x.id), title: String(x.title), aside: String(x.aside ?? ""), category: String(x.category),
+              tags: Array.isArray(x.tags) ? (x.tags as string[]).join(", ") : String(x.tags ?? ""),
+              featured: Boolean(x.featured), status: String(x.status) === "in_progress" ? "In Progress" : String(x.status) === "coming_soon" ? "Coming Soon" : String(x.status).charAt(0).toUpperCase() + String(x.status).slice(1),
+              description: String(x.description), description2: String(x.description2 ?? ""), role: String(x.role ?? ""),
+              contributions: (x.contributions as string[]) ?? [], stack: (x.stack as string[]) ?? [],
+              liveUrl: String(x.liveUrl ?? ""), githubUrl: String(x.githubUrl ?? ""),
+              image: String(x.image ?? ""), imageAlt: String(x.imageAlt ?? ""), caption: String(x.caption ?? ""),
+              location: String(x.location ?? ""), year: String(x.year ?? ""),
+            }));
+            serverProjectIds.current = mapped.map((m: { id: string }) => m.id);
+            setDraft((d) => ({ ...d, projects: mapped }));
+          }
+          setApiProjectsLoaded(true);
+        }
+      } catch { router.replace("/admin"); return; }
+    })();
     try {
       const raw = localStorage.getItem("obafemix.adminDraft");
       if (raw) {
@@ -58,9 +89,33 @@ export default function Dashboard() {
     setReady(true);
   }, [router]);
 
-  const save = () => { localStorage.setItem("obafemix.adminDraft", JSON.stringify(draft)); setSavedAt(new Date().toLocaleTimeString()); };
+  const save = async () => {
+    // Projects save to the real database through the admin API.
+    try {
+      const { apiFetch, isUuid } = await import("@/lib/api");
+      const currentIds = draft.projects.map((x) => x.id).filter(isUuid);
+      for (const id of serverProjectIds.current.filter((id) => !currentIds.includes(id))) {
+        await apiFetch(`/admin/projects/${id}`, { method: "DELETE" });
+      }
+      for (const proj of draft.projects) {
+        const body = JSON.stringify(proj);
+        if (isUuid(proj.id) && serverProjectIds.current.includes(proj.id)) {
+          await apiFetch(`/admin/projects/${proj.id}`, { method: "PUT", body });
+        } else {
+          const res = await apiFetch("/admin/projects", { method: "POST", body });
+          if (res.ok) { const j = await res.json(); if (j?.data?.id) serverProjectIds.current.push(j.data.id); }
+        }
+      }
+    } catch { /* API offline: local draft below still saves; banner explains the split */ }
+    localStorage.setItem("obafemix.adminDraft", JSON.stringify(draft));
+    setSavedAt(new Date().toLocaleTimeString());
+  };
   const reset = () => { setDraft(defaults); localStorage.removeItem("obafemix.adminDraft"); setSavedAt(""); };
-  const signOut = () => { sessionStorage.removeItem("obafemixAdminPreview"); router.push("/admin"); };
+  const signOut = async () => {
+    try { const { apiFetch } = await import("@/lib/api"); await apiFetch("/auth/logout", { method: "POST" }); } catch { /* still leave */ }
+    sessionStorage.removeItem("obafemixAdminPreview");
+    router.push("/admin");
+  };
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft(d => ({ ...d, [k]: v }));
   if (!ready) return <main className="flex min-h-screen items-center justify-center text-white/60">Checking preview session…</main>;
 
@@ -77,7 +132,7 @@ export default function Dashboard() {
           <Link href="/" className="rounded-full border border-violet-300/30 px-4 py-2 text-sm hover:bg-violet-500/15">View site</Link>
           <button onClick={signOut} className="rounded-full border border-red-300/30 px-4 py-2 text-sm text-red-200 hover:bg-red-500/15">Sign out</button>
         </div>
-        <div className="border-t border-amber-300/20 bg-amber-500/10 px-4 py-2 text-center text-xs text-amber-200">Frontend preview only — edits persist to this browser&apos;s localStorage (&quot;obafemix.adminDraft&quot;). Nothing hits any server; real auth &amp; database (Supabase) land in the backend phase.</div>
+        <div className="border-t border-amber-300/20 bg-amber-500/10 px-4 py-2 text-center text-xs text-amber-200">Real backend connected: login is verified by the API, and Projects save to the database on Save. Other panels still save as a local draft in this browser until their APIs land.</div>
       </div>
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[220px_1fr]">
         <nav className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible" aria-label="Admin panels">
@@ -291,7 +346,7 @@ export default function Dashboard() {
               <div><label className={label}>OG image path</label><input className="input-dark" value={draft.ogImage} onChange={e => set("ogImage", e.target.value)} /></div>
             </div>
           )}
-          <p className="mt-8 border-t border-violet-300/10 pt-4 text-xs text-white/40">Draft edits live in localStorage only. Press <strong>Save</strong> (top bar) to persist{savedAt ? ` — last saved ${savedAt}` : ""}.</p>
+          <p className="mt-8 border-t border-violet-300/10 pt-4 text-xs text-white/40">Draft edits live in localStorage only. Projects persist to the database; other panels persist as a local draft. Press <strong>Save</strong> (top bar){savedAt ? ` — last saved ${savedAt}` : ""}.</p>
         </div>
       </div>
     </main>

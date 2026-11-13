@@ -13,6 +13,8 @@ import {
 import { loadEnv, type Env } from "./config/env.js";
 import { healthRoutes } from "./routes/health.js";
 import { publicRoutes } from "./routes/public.js";
+import { authRoutes } from "./routes/auth.js";
+import { adminRoutes } from "./routes/admin.js";
 
 /**
  * Builds the Fastify app (no listening here — server.ts does that,
@@ -78,6 +80,8 @@ export async function buildApp(env: Env = loadEnv()): Promise<FastifyInstance> {
     async (v1) => {
       await v1.register(healthRoutes);
       await v1.register(publicRoutes);
+      await v1.register(authRoutes);
+      await v1.register(adminRoutes);
       // Next steps, one file per resource in src/routes/:
       //   site.ts · projects.ts · skills.ts · contact.ts · auth.ts · admin-media.ts · ai.ts
     },
