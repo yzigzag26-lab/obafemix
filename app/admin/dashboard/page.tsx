@@ -31,6 +31,8 @@ export default function Dashboard() {
   const [panel, setPanel] = useState<(typeof panels)[number]>("Overview");
   const [draft, setDraft] = useState<Draft>(defaults);
   const [savedAt, setSavedAt] = useState("");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "success" | "error">("idle");
+  const [toast, setToast] = useState("");
   const [imgPreview, setImgPreview] = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [newSkill, setNewSkill] = useState({ name: "", percent: 50, category: "Frontend", color: "#a78bfa", featured: false });
@@ -128,50 +130,66 @@ export default function Dashboard() {
   }, [router]);
 
   const save = async () => {
-    // Projects save to the real database through the admin API.
+    if (saveState === "saving") return; // double-click guard: one save at a time
+    setSaveState("saving"); setToast("");
+    let apiOk = true;
+    // Working copy of the projects — when the server creates a project it hands
+    // back a UUID; we ADOPT that id into the draft immediately. That is what
+    // makes Save idempotent: a second Save updates (PUT) instead of creating
+    // a duplicate (POST).
+    const projects = draft.projects.map((x) => ({ ...x }));
     try {
       const { apiFetch, isUuid } = await import("@/lib/api");
-      const currentIds = draft.projects.map((x) => x.id).filter(isUuid);
+      const currentIds = projects.map((x) => x.id).filter(isUuid);
       for (const id of serverProjectIds.current.filter((id) => !currentIds.includes(id))) {
-        await apiFetch(`/admin/projects/${id}`, { method: "DELETE" });
+        const res = await apiFetch(`/admin/projects/${id}`, { method: "DELETE" });
+        if (res.ok) serverProjectIds.current = serverProjectIds.current.filter((x) => x !== id);
+        else apiOk = false;
       }
-      for (const proj of draft.projects) {
+      for (const proj of projects) {
         const body = JSON.stringify(proj);
         if (isUuid(proj.id) && serverProjectIds.current.includes(proj.id)) {
-          await apiFetch(`/admin/projects/${proj.id}`, { method: "PUT", body });
+          const res = await apiFetch(`/admin/projects/${proj.id}`, { method: "PUT", body });
+          if (!res.ok) apiOk = false;
         } else {
           const res = await apiFetch("/admin/projects", { method: "POST", body });
-          if (res.ok) { const j = await res.json(); if (j?.data?.id) serverProjectIds.current.push(j.data.id); }
+          if (res.ok) {
+            const j = await res.json().catch(() => null);
+            if (j?.data?.id) {
+              proj.id = j.data.id; // adopt the server id -> next Save is an update, not a duplicate create
+              if (!serverProjectIds.current.includes(j.data.id)) serverProjectIds.current.push(j.data.id);
+            }
+          } else apiOk = false;
         }
       }
-    } catch { /* API offline: local draft below still saves; banner explains the split */ }
+    } catch { apiOk = false; }
     try {
-      const { apiFetch: af, isUuid: iu } = await import("@/lib/api");
-      // Skills: delete removed, update existing (matched by name via POST upsert is server-side for skills by name),
-      // simplest correct path: POST every skill (upsert by name), DELETE server skills whose names vanished.
+      const { apiFetch: af } = await import("@/lib/api");
       const before = await (await af("/skills")).json().catch(() => null);
       const serverNames: string[] = Array.isArray(before?.data) ? before.data.map((x: { name: string }) => x.name) : [];
       for (const name of serverNames.filter((n: string) => !draft.skills.some((s) => s.name === n))) {
         const row = before.data.find((x: { name: string }) => x.name === name);
-        if (row?.id) await af(`/admin/skills/${row.id}`, { method: "DELETE" });
+        if (row?.id) { const r = await af(`/admin/skills/${row.id}`, { method: "DELETE" }); if (!r.ok) apiOk = false; }
       }
-      for (const s of draft.skills) await af("/admin/skills", { method: "POST", body: JSON.stringify(s) });
-      void iu;
-      // Profile + settings
-      await af("/admin/profile", { method: "PATCH", body: JSON.stringify({ headline: draft.headline, location: draft.location, availability: draft.availability, aboutBio: draft.bio }) });
-      await af("/admin/settings", { method: "PATCH", body: JSON.stringify({ metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, keywords: draft.keywords, themeColor: draft.themeColor, ogImageUrl: draft.ogImage, contactEmail: draft.email }) });
-      // Titles: diff by label against the server's list
+      for (const s of draft.skills) { const r = await af("/admin/skills", { method: "POST", body: JSON.stringify(s) }); if (!r.ok) apiOk = false; } // server upserts by name — safe to repeat
+      const rp = await af("/admin/profile", { method: "PATCH", body: JSON.stringify({ headline: draft.headline, location: draft.location, availability: draft.availability, aboutBio: draft.bio }) }); if (!rp.ok) apiOk = false;
+      const rs = await af("/admin/settings", { method: "PATCH", body: JSON.stringify({ metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, keywords: draft.keywords, themeColor: draft.themeColor, ogImageUrl: draft.ogImage, contactEmail: draft.email }) }); if (!rs.ok) apiOk = false;
       const tr = await (await af("/admin/titles")).json().catch(() => null);
       const serverTitles: { id: string; label: string }[] = Array.isArray(tr?.data) ? tr.data : [];
-      for (const st2 of serverTitles.filter((x) => !draft.titles.includes(x.label))) await af(`/admin/titles/${st2.id}`, { method: "DELETE" });
-      for (const label of draft.titles.filter((l) => !serverTitles.some((x) => x.label === l))) await af("/admin/titles", { method: "POST", body: JSON.stringify({ label }) });
-      // Socials
-      await af("/admin/socials/github", { method: "PUT", body: JSON.stringify({ url: draft.github, published: true }) });
-      await af("/admin/socials/linkedin", { method: "PUT", body: JSON.stringify({ url: draft.linkedin, published: draft.linkedinPublished }) });
-      await af("/admin/socials/wazobia", { method: "PUT", body: JSON.stringify({ url: draft.wazobiaUrl, published: true }) });
-    } catch { /* offline: local draft below still saves */ }
-    localStorage.setItem("obafemix.adminDraft", JSON.stringify(draft));
+      for (const st2 of serverTitles.filter((x) => !draft.titles.includes(x.label))) { const r = await af(`/admin/titles/${st2.id}`, { method: "DELETE" }); if (!r.ok) apiOk = false; }
+      for (const label of draft.titles.filter((l) => !serverTitles.some((x) => x.label === l))) { const r = await af("/admin/titles", { method: "POST", body: JSON.stringify({ label }) }); if (!r.ok) apiOk = false; }
+      const g1 = await af("/admin/socials/github", { method: "PUT", body: JSON.stringify({ url: draft.github, published: true }) }); if (!g1.ok) apiOk = false;
+      const g2 = await af("/admin/socials/linkedin", { method: "PUT", body: JSON.stringify({ url: draft.linkedin, published: draft.linkedinPublished }) }); if (!g2.ok) apiOk = false;
+      const g3 = await af("/admin/socials/wazobia", { method: "PUT", body: JSON.stringify({ url: draft.wazobiaUrl, published: true }) }); if (!g3.ok) apiOk = false;
+    } catch { apiOk = false; }
+    // Persist the draft WITH the adopted server ids, so a reload + Save still updates instead of duplicating.
+    const nextDraft = { ...draft, projects };
+    setDraft(nextDraft);
+    try { localStorage.setItem("obafemix.adminDraft", JSON.stringify(nextDraft)); } catch { /* storage full — DB save above is the source of truth */ }
     setSavedAt(new Date().toLocaleTimeString());
+    if (apiOk) { setSaveState("success"); setToast("Saved successfully — everything is in the database."); }
+    else { setSaveState("error"); setToast("Saved in this browser only — the API could not be reached, so the database was not updated."); }
+    setTimeout(() => { setSaveState("idle"); setToast(""); }, 4000);
   };
   const reset = () => { setDraft(defaults); localStorage.removeItem("obafemix.adminDraft"); setSavedAt(""); };
   const signOut = async () => {
@@ -189,14 +207,25 @@ export default function Dashboard() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
           <Logo size={36} /><span className="font-display font-extrabold">OBAFEMIX</span><span className="chip text-[10px]">ADMIN</span>
           <span className="flex-1" />
-          {savedAt && <span className="text-xs text-emerald-300">Saved {savedAt}</span>}
-          <button onClick={save} className="btn-primary-glow rounded-full px-4 py-2 text-sm font-semibold">Save</button>
+          {savedAt && <span className="text-xs text-emerald-300">Last saved {savedAt}</span>}
+          <button onClick={save} disabled={saveState === "saving"} className="btn-primary-glow inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60">{saveState === "saving" ? "Saving…" : saveState === "success" ? "✓ Saved" : "Save"}</button>
           <button onClick={reset} className="rounded-full border border-violet-300/30 px-4 py-2 text-sm hover:bg-violet-500/15">Reset</button>
           <Link href="/" className="rounded-full border border-violet-300/30 px-4 py-2 text-sm hover:bg-violet-500/15">View site</Link>
           <button onClick={signOut} className="rounded-full border border-red-300/30 px-4 py-2 text-sm text-red-200 hover:bg-red-500/15">Sign out</button>
         </div>
-        <div className="border-t border-amber-300/20 bg-amber-500/10 px-4 py-2 text-center text-xs text-amber-200">Real backend connected: login is verified by the API, and Projects save to the database on Save. Other panels still save as a local draft in this browser until their APIs land.</div>
+        <div className="border-t border-emerald-300/20 bg-emerald-500/10 px-4 py-2 text-center text-xs text-emerald-200">🟢 Live backend connected — login is verified by the API, and <strong>Save</strong> writes projects, skills, profile, titles, socials &amp; settings to the database.</div>
       </div>
+      {toast && (
+        <div role="status" className={`fixed bottom-6 right-6 z-50 flex max-w-sm items-start gap-3 rounded-2xl border p-4 shadow-2xl backdrop-blur-xl animate-[toastIn_.25s_ease-out] ${saveState === "error" ? "border-amber-300/40 bg-[#1a1206]/95" : "border-emerald-300/40 bg-[#061a10]/95"}`}>
+          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base font-bold ${saveState === "error" ? "bg-amber-400/20 text-amber-300" : "bg-emerald-400/20 text-emerald-300"}`}>{saveState === "error" ? "!" : "✓"}</span>
+          <div className="text-sm">
+            <p className="font-display font-bold text-white">{saveState === "error" ? "Saved locally only" : "Save successful"}</p>
+            <p className="mt-0.5 text-white/65">{toast}</p>
+          </div>
+          <button onClick={() => { setToast(""); setSaveState("idle"); }} aria-label="Dismiss" className="ml-1 text-white/40 hover:text-white">✕</button>
+        </div>
+      )}
+      <style>{`@keyframes toastIn{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}`}</style>
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[220px_1fr]">
         <nav className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible" aria-label="Admin panels">
           {panels.map(p => <button key={p} onClick={() => setPanel(p)} className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-left text-sm transition ${panel === p ? "btn-primary-glow" : "glass text-white/70 hover:text-white"}`}>{p}</button>)}
@@ -279,7 +308,7 @@ export default function Dashboard() {
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex-1">
                   <h1 className="font-display text-3xl font-extrabold">Projects</h1>
-                  <p className="mt-1 text-sm text-white/55">Add a project in the exact format of the site card. Press <strong>Save</strong> (top bar) afterwards — it then appears on the homepage Projects section (same browser) in the same design.</p>
+                  <p className="mt-1 text-sm text-white/55">Add a project in the exact format of the site card. Press <strong>Save</strong> (top bar) afterwards — it then appears on the homepage Projects section for every visitor, in the same design.</p>
                 </div>
                 <button onClick={openAdd} className="btn-primary-glow shimmer-sweep rounded-full px-5 py-2.5 text-sm font-semibold">+ Add Project</button>
               </div>
@@ -382,7 +411,7 @@ export default function Dashboard() {
                   <div className="flex flex-wrap gap-3 border-t border-violet-300/10 pt-5">
                     <button onClick={submitProject} className="btn-primary-glow rounded-full px-6 py-3 text-sm font-semibold">{editingProjectId ? "Update project" : "Add project to site"}</button>
                     <button onClick={() => setShowProjectForm(false)} className="rounded-full border border-violet-300/30 px-6 py-3 text-sm hover:bg-violet-500/15">Cancel</button>
-                    <span className="self-center text-xs text-white/45">Then press <strong>Save</strong> at the top to publish it to the homepage (this browser).</span>
+                    <span className="self-center text-xs text-white/45">Then press <strong>Save</strong> at the top to publish it to the database and homepage.</span>
                   </div>
                 </div>
               )}
