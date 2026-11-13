@@ -1,0 +1,182 @@
+openapi: 3.1.0
+info:
+  title: OBAFEMIX API
+  version: 1.0.0-draft
+  description: >
+    Specification only — not yet implemented. Human docs: docs/API.md.
+    All errors use the envelope { error: { code, message, fields? } }.
+servers:
+  - url: /api
+security: []   # public by default; admin ops require the supabaseSession cookie
+components:
+  securitySchemes:
+    supabaseSession:
+      type: apiKey
+      in: cookie
+      name: sb-access-token
+      description: Supabase Auth JWT cookie; role=admin required for writes.
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string, enum: [VALIDATION, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, RATE_LIMITED, SERVER] }
+            message: { type: string }
+            fields: { type: object, additionalProperties: { type: string } }
+    Project:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        aside: { type: string }
+        category: { type: string, enum: ["Web Apps", "African Language Tech", "Open Source", "Mobile Apps", "Backend & APIs", Other] }
+        tags: { type: array, items: { type: string } }
+        featured: { type: boolean }
+        status: { type: string, enum: [live, in_progress, completed, archived, coming_soon] }
+        description: { type: string }
+        description2: { type: string }
+        role: { type: string }
+        contributions: { type: array, items: { type: string } }
+        stack: { type: array, items: { type: string } }
+        liveUrl: { type: string, format: uri }
+        githubUrl: { type: string, format: uri }
+        image: { type: string }
+        imageAlt: { type: string }
+        caption: { type: string }
+        location: { type: string }
+        year: { type: string }
+        published: { type: boolean }
+    Skill:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        percent: { type: integer, minimum: 0, maximum: 100 }
+        category: { type: string }
+        iconColor: { type: string }
+        featured: { type: boolean }
+    ContactIn:
+      type: object
+      required: [name, email, subject, message]
+      properties:
+        name: { type: string, minLength: 2 }
+        email: { type: string, format: email }
+        subject: { type: string, enum: ["Project Collaboration", "Job Opportunity", "Freelance Work", "General Question"] }
+        message: { type: string, minLength: 10 }
+        company: { type: string, description: honeypot — must be empty }
+paths:
+  /health:
+    get:
+      summary: Liveness + DB probe
+      responses: { "200": { description: ok } }
+  /site:
+    get:
+      summary: Profile + titles + socials + settings aggregate (CDN-cached)
+      responses: { "200": { description: ok } }
+  /projects:
+    get:
+      summary: Published projects
+      parameters:
+        - { name: category, in: query, schema: { type: string } }
+        - { name: featured, in: query, schema: { type: boolean } }
+      responses: { "200": { description: ok } }
+    post:
+      summary: Create project (admin form fields)
+      security: [{ supabaseSession: [] }]
+      requestBody:
+        content: { application/json: { schema: { $ref: "#/components/schemas/Project" } } }
+      responses: { "201": { description: created }, "400": { description: validation }, "401": { description: unauthorized } }
+  /projects/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    put:
+      summary: Full project update
+      security: [{ supabaseSession: [] }]
+      responses: { "200": { description: ok }, "404": { description: not found } }
+    delete:
+      summary: Delete project and its stored image
+      security: [{ supabaseSession: [] }]
+      responses: { "204": { description: deleted } }
+  /projects/reorder:
+    patch:
+      summary: Persist grid order
+      security: [{ supabaseSession: [] }]
+      responses: { "200": { description: ok } }
+  /projects/by-slug/{slug}:
+    get:
+      summary: One published project by slug
+      parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: ok }, "404": { description: not found } }
+  /skills:
+    get:
+      summary: Skills with percentages
+      parameters: [{ name: category, in: query, schema: { type: string } }]
+      responses: { "200": { description: ok } }
+    post:
+      summary: Create skill
+      security: [{ supabaseSession: [] }]
+      requestBody:
+        content: { application/json: { schema: { $ref: "#/components/schemas/Skill" } } }
+      responses: { "201": { description: created } }
+  /skills/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    put: { summary: Update skill, security: [{ supabaseSession: [] }], responses: { "200": { description: ok } } }
+    delete: { summary: Delete skill, security: [{ supabaseSession: [] }], responses: { "204": { description: deleted } } }
+  /contact:
+    post:
+      summary: Store a contact message (rate-limited 5/IP/10min; optional email notification)
+      requestBody:
+        content: { application/json: { schema: { $ref: "#/components/schemas/ContactIn" } } }
+      responses: { "201": { description: stored }, "429": { description: rate limited } }
+    get:
+      summary: Admin message inbox
+      security: [{ supabaseSession: [] }]
+      responses: { "200": { description: ok } }
+  /contact/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    patch: { summary: Mark read/replied, security: [{ supabaseSession: [] }], responses: { "200": { description: ok } } }
+    delete: { summary: Delete message, security: [{ supabaseSession: [] }], responses: { "204": { description: deleted } } }
+  /auth/session:
+    get:
+      summary: Current auth state for UI
+      responses: { "200": { description: ok } }
+  /profile:
+    patch: { summary: Update singleton profile, security: [{ supabaseSession: [] }], responses: { "200": { description: ok } } }
+  /settings:
+    patch: { summary: Update site metadata/settings, security: [{ supabaseSession: [] }], responses: { "200": { description: ok } } }
+  /titles:
+    post: { summary: Add hero typing title (max 6), security: [{ supabaseSession: [] }], responses: { "201": { description: created } } }
+  /titles/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+    delete: { summary: Remove typing title, security: [{ supabaseSession: [] }], responses: { "204": { description: deleted } } }
+  /socials/{platform}:
+    parameters: [{ name: platform, in: path, required: true, schema: { type: string } }]
+    put: { summary: Set social URL + published toggle, security: [{ supabaseSession: [] }], responses: { "200": { description: ok } } }
+  /admin/media:
+    post:
+      summary: Get signed upload URL (Supabase Storage)
+      security: [{ supabaseSession: [] }]
+      responses: { "201": { description: signed url issued } }
+    delete:
+      summary: Delete a stored file
+      security: [{ supabaseSession: [] }]
+      responses: { "204": { description: deleted } }
+  /ai/chat:
+    post:
+      summary: Site-knowledge assistant (rate-limited 20/IP/hour; real model in phase 4)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message: { type: string, maxLength: 1000 }
+                history: { type: array, maxItems: 6 }
+      responses: { "200": { description: reply }, "429": { description: rate limited } }
+  /analytics/visit:
+    post: { summary: Cookieless page-view ping, responses: { "204": { description: recorded } } }
+  /analytics/summary:
+    get: { summary: 30-day aggregates (admin), security: [{ supabaseSession: [] }], responses: { "200": { description: ok } } }
