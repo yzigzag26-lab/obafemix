@@ -65,14 +65,7 @@ export function Projects() {
       <Image src="/assets/project-bg.webp" alt="" fill className="object-cover opacity-25" aria-hidden />
       <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-[#05010f] via-[#05010f]/80 to-[#05010f]" />
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
-        <Reveal>
-          <p className="eyebrow">{"// 02. PROJECTS"}</p>
-          <h2 className="font-display mt-3 text-4xl font-extrabold sm:text-5xl">Projects that solve <span className="text-gradient">real problems.</span></h2>
-          <p className="mt-3 max-w-xl text-white/60">A blend of creativity, technology and purpose — one flagship product, built with intent.</p>
-        </Reveal>
-        {/* Filters rendered client-side in ProjectsFilter below via static pills for SSR */}
         <ProjectsClient />
-        <p aria-hidden className="text-outline font-display pointer-events-none mt-10 select-none text-center font-extrabold tracking-tight" style={{ fontSize: "clamp(2.4rem,8vw,6rem)" }}>BUILD·SOLVE·GROW</p>
       </div>
     </section>
   );
