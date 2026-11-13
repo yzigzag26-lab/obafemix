@@ -142,7 +142,7 @@ export default function AiChat() {
         <button
           type="button"
           aria-label="Open AI assistant — drag to move, click to chat"
-          title="Drag me anywhere · Click to chat"
+          title="AI — drag me anywhere · Click to chat"
           onPointerDown={startBtnDrag}
           onPointerMove={onDragMove}
           onPointerUp={endDrag}
@@ -152,7 +152,10 @@ export default function AiChat() {
           {/* Centering layer: absolute inset-0 grid — the star is the only
               centered item, so it can never drift off the circle's center. */}
           <span aria-hidden className="pointer-events-none absolute inset-0 grid place-items-center">
-            <GeminiStar size={30} className="block shrink-0 drop-shadow-[0_0_10px_rgba(155,92,245,0.65)]" />
+            <span className="flex flex-col items-center justify-center gap-0.5">
+              <GeminiStar size={20} className="block shrink-0 drop-shadow-[0_0_10px_rgba(155,92,245,0.65)]" />
+              <span className="font-display block text-[13px] font-extrabold leading-none tracking-[0.18em] text-white">AI</span>
+            </span>
           </span>
           <span aria-hidden className="absolute right-0.5 top-0.5 h-3 w-3 rounded-full border-2 border-[#0d0724] bg-emerald-400" />
           <span className="sr-only">AI assistant</span>
