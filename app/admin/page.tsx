@@ -43,7 +43,6 @@ export default function AdminLogin() {
           <div className="flex items-center gap-2 lg:hidden"><Logo size={36} /><span className="font-display font-extrabold">OBAFEMIX</span></div>
           <p className="eyebrow mt-2">{"// ADMIN"}</p>
           <h2 className="font-display mt-2 text-3xl font-extrabold">Administrator Login</h2>
-          <div role="note" className="mt-5 rounded-xl border border-amber-300/30 bg-amber-500/10 p-3.5 text-sm text-amber-200">Real authentication: your password is checked by the API against the one-time password stored in the server&apos;s .env (never in this browser). A short-lived httpOnly session cookie is issued on success.</div>
           <label htmlFor="pw" className="mt-6 block text-sm font-medium">Password</label>
           <div className="relative mt-1.5">
             <Lock size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />

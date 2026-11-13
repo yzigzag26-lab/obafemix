@@ -180,7 +180,7 @@ export default function Dashboard() {
     router.push("/admin");
   };
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft(d => ({ ...d, [k]: v }));
-  if (!ready) return <main className="flex min-h-screen items-center justify-center text-white/60">Checking preview session…</main>;
+  if (!ready) return <main className="flex min-h-screen items-center justify-center text-white/60">Checking session…</main>;
 
   const label = "mb-1.5 block text-sm font-medium text-white/80";
   return (
@@ -208,7 +208,7 @@ export default function Dashboard() {
               <div className="mt-6 grid gap-3 sm:grid-cols-3">{[["16", "Technologies"], [String(draft.projects.length), draft.projects.length === 1 ? "Flagship Product" : "Projects on Site"], ["10", "Admin Panels"]].map(([n, l]) => <div key={l} className="rounded-2xl border border-violet-300/15 p-5"><p className="font-display text-2xl font-extrabold text-violet-200">{n}</p><p className="text-sm text-white/55">{l}</p></div>)}</div>
               <div className="mt-6 rounded-2xl border border-violet-300/15 p-5"><p className="font-display font-bold">{draft.projects[0]?.title ?? "WAZOBIA"} — Flagship</p><p className="mt-1 text-sm text-white/60">{draft.projects[0]?.description}</p>{draft.projects[0]?.liveUrl && <a href={draft.projects[0].liveUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm text-violet-300">Visit live site →</a>}<button onClick={() => setPanel("Projects")} className="btn-primary-glow mt-4 block rounded-full px-4 py-2 text-sm font-semibold">+ Add a project</button></div>
               <p className="mt-6 font-mono text-[10px] uppercase tracking-[.25em] text-violet-300/80">Build checklist</p>
-              <ul className="mt-2 space-y-1.5 text-sm text-white/70">{["Hero video + navbar avatar live", "About crown emblem (no portrait)", "Projects are managed in the Projects panel — added projects appear on the site in the same card format", "Contact form via mailto (no backend)", "Real auth (Supabase) — backend phase"].map(i => <li key={i}>✓ {i}</li>)}</ul>
+              <ul className="mt-2 space-y-1.5 text-sm text-white/70">{["Hero video + navbar avatar live", "About crown emblem (no portrait)", "Projects are managed in the Projects panel — added projects appear on the site in the same card format", "Contact form saves to the database — read replies in the Messages panel", "Real auth live: password checked by the API, session cookie issued"].map(i => <li key={i}>✓ {i}</li>)}</ul>
             </div>
           )}
           {panel === "About Me" && (
@@ -443,7 +443,7 @@ export default function Dashboard() {
               <div><label className={label}>OG image path</label><input className="input-dark" value={draft.ogImage} onChange={e => set("ogImage", e.target.value)} /></div>
             </div>
           )}
-          <p className="mt-8 border-t border-violet-300/10 pt-4 text-xs text-white/40">Draft edits live in localStorage only. Projects persist to the database; other panels persist as a local draft. Press <strong>Save</strong> (top bar){savedAt ? ` — last saved ${savedAt}` : ""}.</p>
+          <p className="mt-8 border-t border-violet-300/10 pt-4 text-xs text-white/40">Press <strong>Save</strong> (top bar) to sync projects, skills, profile, titles, socials and settings to the database{savedAt ? ` — last saved ${savedAt}` : ""}. A local draft is also kept in this browser as a backup.</p>
         </div>
       </div>
     </main>

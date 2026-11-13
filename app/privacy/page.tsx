@@ -10,9 +10,9 @@ export default function Privacy() {
       <div className="mt-8 space-y-5 leading-relaxed text-white/70">
         <p>This is a static portfolio. It runs no trackers, no analytics and no advertising cookies.</p>
         <h2 className="font-display text-xl font-bold text-white">Contact form</h2>
-        <p>The contact form has no backend. On submit it opens your own mail app (mailto:) with the message pre-filled — nothing passes through a server operated by this site.</p>
+        <p>When you submit the contact form, your name, email address, subject and message are sent to this site's own API and stored in its database so the site owner can read and reply to them. They are not sold or shared with advertisers. If the API is unreachable, the form instead opens your own mail app (mailto:) with the message pre-filled.</p>
         <h2 className="font-display text-xl font-bold text-white">Browser storage</h2>
-        <p>The admin preview uses <code>sessionStorage</code> (login flag, cleared when the tab closes) and <code>localStorage</code> (admin draft labelled <code>obafemix.adminDraft</code>) entirely inside your browser. Nothing is uploaded.</p>
+        <p>The public site sets no tracking cookies. The admin area uses one httpOnly session cookie (issued by the API after login, lasting 60 minutes) and keeps a local draft labelled <code>obafemix.adminDraft</code> in the admin's own browser as a backup.</p>
         <h2 className="font-display text-xl font-bold text-white">External links</h2>
         <p>Links to GitHub, Google Maps and WAZOBIA are governed by those services&apos; own policies.</p>
         <h2 className="font-display text-xl font-bold text-white">Contact</h2>
