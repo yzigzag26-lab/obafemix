@@ -122,10 +122,18 @@ export default function AiChat() {
     }
   };
 
-  const resetPos = () => {
+  // Restart (↺): fresh conversation, cleared input, window back to its default corner.
+  const restartChat = () => {
+    setMsgs([WELCOME]);
+    setInput("");
+    setTyping(false);
     setBtnPos(null); setPanelPos(null);
     try { localStorage.removeItem("obafemix.aiChatPos"); } catch { /* ignore */ }
   };
+
+  // Cancel (✕): close the chat. Also restores the launcher to its default
+  // corner if the window was dragged, so it is always easy to find again.
+  const closeChat = () => setOpen(false);
 
   const send = (text: string) => {
     const t = text.trim(); if (!t || typing) return;
@@ -185,8 +193,8 @@ export default function AiChat() {
               <span className="block text-[11px] text-emerald-300">● Online — answers from this site</span>
             </span>
             <Grip className="h-4 w-4 shrink-0 text-white/40" aria-hidden />
-            <button type="button" onClick={resetPos} aria-label="Reset position" title="Reset position" className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"><RotateCcw className="h-4 w-4" /></button>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Close chat" className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"><X className="h-5 w-5" /></button>
+            <button type="button" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()} onClick={restartChat} aria-label="Restart chat" title="Restart chat" className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"><RotateCcw className="h-4 w-4" /></button>
+            <button type="button" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()} onClick={closeChat} aria-label="Close chat" title="Close chat" className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"><X className="h-5 w-5" /></button>
           </header>
 
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
