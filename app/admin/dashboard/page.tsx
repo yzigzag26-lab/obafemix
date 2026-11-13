@@ -7,7 +7,7 @@ import { CONTRIBUTION_OPTIONS, IMAGE_PRESETS, LOCATION_OPTIONS, PROJECT_CATEGORI
 
 type Draft = typeof defaults;
 const defaults = {
-  bio: "I'm OBAFEMIX — a student developer and full-stack developer based in Lagos State, Nigeria. Founder & Primary Developer of WAZOBIA.",
+  bio: "I'm OBAFEMIX — a student developer and full-stack developer based in Lagos State, Nigeria.",
   location: "Lagos State, Nigeria", availability: "Open to opportunities",
   headline: "I build solutions for a better tomorrow.",
   titles: ["Student Developer", "Full-Stack Developer", "Software Developer", "Technology Entrepreneur"],
@@ -19,7 +19,7 @@ const defaults = {
   projects: [defaultProject] as Project[],
   email: "yzigzag26@gmail.com", phone: "", contactLocation: "Lagos State, Nigeria", timezone: "Africa/Lagos (WAT)",
   github: "https://github.com/yzigzag26-lab", linkedin: "", linkedinPublished: false, wazobiaUrl: "https://wazobia-omega.vercel.app/",
-  metaTitle: "OBAFEMIX — I build solutions for a better tomorrow", metaDescription: "OBAFEMIX — student & full-stack developer in Lagos State, Nigeria. Founder & Primary Developer of WAZOBIA, the African Language Ecosystem.", keywords: "OBAFEMIX, full-stack developer, Lagos, WAZOBIA", themeColor: "#05010f", ogImage: "/assets/obafemix.png",
+  metaTitle: "OBAFEMIX — I build solutions for a better tomorrow", metaDescription: "OBAFEMIX — student & full-stack developer in Lagos State, Nigeria.", keywords: "OBAFEMIX, full-stack developer, Lagos, WAZOBIA", themeColor: "#05010f", ogImage: "/assets/obafemix.png",
 };
 const LEVELS = ["Beginner", "Beginner–Intermediate", "Intermediate"];
 const panels = ["Overview", "About Me", "Professional Titles", "Skills & Levels", "Projects", "Profile Image", "Contact Info", "Social Links", "Site Metadata"] as const;
@@ -196,7 +196,7 @@ export default function Dashboard() {
                           {YEAR_OPTIONS.map((y) => <option key={y}>{y}</option>)}
                         </select></div>
                     </div>
-                    <div><label className={label} htmlFor="pf-tags">Tag chips (comma-separated)</label><input id="pf-tags" className="input-dark" placeholder="Web App, African Language Tech, Founder" value={pf.tags} onChange={(e) => setPf({ tags: e.target.value })} /></div>
+                    <div><label className={label} htmlFor="pf-tags">Tag chips (comma-separated)</label><input id="pf-tags" className="input-dark" placeholder="Web App, African Language Tech" value={pf.tags} onChange={(e) => setPf({ tags: e.target.value })} /></div>
                     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={pf.featured} onChange={(e) => setPf({ featured: e.target.checked })} className="h-4 w-4 accent-violet-500" /> Show the violet “FEATURED” pill on the card</label>
                   </fieldset>
 

@@ -3,7 +3,7 @@ export type Project = {
   title: string;
   aside: string; // Caveat line beside title
   category: string; // filter category
-  tags: string; // comma-separated chips, e.g. "Web App, Founder"
+  tags: string; // comma-separated chips, e.g. "Web App, African Language Tech"
   featured: boolean;
   status: string;
   description: string;
@@ -21,7 +21,7 @@ export type Project = {
 };
 
 export const PROJECT_CATEGORIES = ["Web Apps", "African Language Tech", "Open Source", "Mobile Apps", "Backend & APIs", "Other"] as const;
-export const PROJECT_ROLES = ["Founder & Primary Developer", "Founder & Developer", "Full-Stack Developer", "Frontend Developer", "Backend Developer", "Developer", "Contributor", "Maintainer"] as const;
+export const PROJECT_ROLES = ["Full-Stack Developer", "Frontend Developer", "Backend Developer", "Developer", "Contributor", "Maintainer"] as const;
 export const PROJECT_STATUSES = ["Live", "In Progress", "Completed", "Archived", "Coming Soon"] as const;
 export const CONTRIBUTION_OPTIONS = ["Frontend Development", "Backend Development", "API Integration", "Product Architecture", "Product Development", "UI / UX Design", "Database Design", "Deployment & DevOps", "Testing", "Documentation", "Open Source Maintenance"] as const;
 export const STACK_OPTIONS = ["React", "Next.js", "TypeScript", "JavaScript", "Node.js", "REST APIs", "MongoDB", "Supabase", "Tailwind CSS", "Vercel", "Git & GitHub", "Linux"] as const;
@@ -41,12 +41,12 @@ export const defaultProject: Project = {
   title: "WAZOBIA",
   aside: "the African language ecosystem",
   category: "African Language Tech",
-  tags: "Web App, African Language Tech, Founder",
+  tags: "Web App, African Language Tech",
   featured: true,
   status: "Live",
   description: "WAZOBIA is an African language technology ecosystem — Nigeria first, built for Africa. It makes Yorùbá, Hausa and Igbo fully usable in everyday digital tools: translation, structured learning, pronunciation and cultural preservation, with English as a bridge language.",
   description2: "A language held only in speech is one generation from being lost. WAZOBIA exists so that learning, translating and preserving an African language does not require leaving it behind.",
-  role: "Founder & Primary Developer",
+  role: "Full-Stack Developer",
   contributions: ["Frontend Development", "Backend Development", "API Integration", "Product Architecture", "Product Development"],
   stack: ["React", "TypeScript", "Vercel"],
   liveUrl: "https://wazobia-omega.vercel.app/",

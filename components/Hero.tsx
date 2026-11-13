@@ -127,11 +127,6 @@ export default function Hero() {
         <span className="font-mono text-[10px] tracking-[.3em] text-white/50">SCROLL TO EXPLORE</span>
         <span className="flex h-9 w-6 justify-center rounded-full border border-violet-300/30 pt-2"><span className="scroll-dot h-2 w-1 rounded bg-violet-300" /></span>
       </div>
-      <aside className="glass float-slow absolute bottom-24 right-6 z-10 hidden max-w-xs rounded-2xl p-5 lg:block">
-        <p className="font-mono text-[10px] tracking-[.3em] text-violet-300/80">CURRENTLY</p>
-        <p className="font-display mt-2 font-bold">Founder &amp; Primary Developer of WAZOBIA</p>
-        <p className="mt-1 text-sm text-white/60">The African Language Ecosystem — Nigeria-first.</p>
-      </aside>
     </section>
   );
 }
