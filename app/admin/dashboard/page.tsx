@@ -49,6 +49,8 @@ export default function Dashboard() {
   const [projectErrors, setProjectErrors] = useState<Record<string, string>>({});
   const [customStack, setCustomStack] = useState("");
   const [imageMode, setImageMode] = useState<string>(emptyProject.image);
+  const [imgBusy, setImgBusy] = useState(false);
+  const [imgMsg, setImgMsg] = useState("");
 
   const [apiProjectsLoaded, setApiProjectsLoaded] = useState(false);
   const serverProjectIds = useRef<string[]>([]);
@@ -309,7 +311,7 @@ export default function Dashboard() {
             const toggleList = (key: "contributions" | "stack", value: string) =>
               setPf({ [key]: pf[key].includes(value) ? pf[key].filter((v) => v !== value) : [...pf[key], value] } as Partial<Project>);
             const openAdd = () => { setProjectForm({ ...emptyProject, id: `p-${Date.now()}` }); setEditingProjectId(null); setProjectErrors({}); setCustomStack(""); setImageMode(emptyProject.image); setShowProjectForm(true); };
-            const openEdit = (proj: Project) => { setProjectForm({ ...proj, contributions: [...proj.contributions], stack: [...proj.stack] }); setEditingProjectId(proj.id); setProjectErrors({}); setCustomStack(""); setImageMode(IMAGE_PRESETS.some((i) => i.value === proj.image) ? proj.image : proj.image.startsWith("data:") ? "upload" : "custom"); setShowProjectForm(true); };
+            const openEdit = (proj: Project) => { setProjectForm({ ...proj, contributions: [...proj.contributions], stack: [...proj.stack] }); setEditingProjectId(proj.id); setProjectErrors({}); setCustomStack(""); setImageMode(IMAGE_PRESETS.some((i) => i.value === proj.image) ? proj.image : (proj.image.startsWith("data:") || proj.image.includes("/storage/v1/object/public/")) ? "upload" : "custom"); setImgMsg(""); setShowProjectForm(true); };
             const submitProject = () => {
               const errs: Record<string, string> = {};
               if (pf.title.trim().length < 2) errs.title = "Project name is required (at least 2 characters).";
@@ -390,11 +392,11 @@ export default function Dashboard() {
                         {IMAGE_PRESETS.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
                       </select></div>
                     {imageMode === "custom" && <div><label className={label} htmlFor="pf-image-url">Image URL</label><input id="pf-image-url" className="input-dark" placeholder="https://…/screenshot.png" value={pf.image.startsWith("data:") ? "" : pf.image} onChange={(e) => setPf({ image: e.target.value })} /></div>}
-                    {imageMode === "upload" && <div><label className={label} htmlFor="pf-image-file">Upload an image (kept in this browser only)</label>
-                      <input id="pf-image-file" type="file" accept="image/*" className="input-dark" onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = () => setPf({ image: String(r.result) }); r.readAsDataURL(f); }} />
-                      <p className="mt-1 text-xs text-white/40">Small images only — large files may exceed browser storage when you press Save.</p></div>}
+                    {imageMode === "upload" && <div><label className={label} htmlFor="pf-image-file">Upload an image (stored permanently — auto-cropped to the card shape, 16:10)</label>
+                      <input id="pf-image-file" type="file" accept="image/*" className="input-dark" disabled={imgBusy} onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; setImgBusy(true); setImgMsg("Cropping to 16:10 and uploading…"); try { const { cropToCard, uploadProjectImage } = await import("@/lib/api"); const url = await uploadProjectImage(await cropToCard(f)); setPf({ image: url }); setImgMsg("✓ Uploaded — press Save changes (top) to attach it to the project."); } catch (err) { setImgMsg(`Upload failed: ${err instanceof Error ? err.message : "unknown error"}`); } finally { setImgBusy(false); } }} />
+                      {imgMsg && <p className="mt-1.5 text-xs text-white/55">{imgMsg}</p>}</div>}
                     {err("image")}
-                    {pf.image && <img src={pf.image} alt="" className="max-h-44 rounded-xl border border-violet-300/20 object-contain" />}
+                    {pf.image && /* eslint-disable-next-line @next/next/no-img-element */ <img src={pf.image} alt="" className="aspect-[16/10] w-full max-w-md rounded-xl border border-violet-300/20 object-cover" />}
                     <div><label className={label} htmlFor="pf-alt">Image alt text *</label><input id="pf-alt" className="input-dark" placeholder="Describe the image for screen readers" value={pf.imageAlt} onChange={(e) => setPf({ imageAlt: e.target.value })} aria-invalid={!!projectErrors.imageAlt} />{err("imageAlt")}</div>
                     <div><label className={label} htmlFor="pf-caption">Handwritten caption under the image</label><input id="pf-caption" className="input-dark" placeholder="e.g. Africa speaks. Let's understand every voice." value={pf.caption} onChange={(e) => setPf({ caption: e.target.value })} /></div>
                   </fieldset>
