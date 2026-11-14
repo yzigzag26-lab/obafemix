@@ -4,11 +4,15 @@ import { ArrowUpRight, Github, Linkedin, Mail, MapPin, Send } from "lucide-react
 import Reveal from "./Reveal";
 import { site } from "@/lib/site";
 
+/** Opens Gmail's compose window with everything pre-filled (visitor just presses Send in Gmail). */
+const gmailCompose = (subject: string, body?: string) =>
+  `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(site.email)}&su=${encodeURIComponent(subject)}${body ? `&body=${encodeURIComponent(body)}` : ""}`;
+
 export default function ContactClient() {
   const [form, setForm] = useState({ name: "", email: "", subject: "Project Collaboration", message: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState("");
-  const submit = async (e: FormEvent) => {
+  const submit = (e: FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
     if (form.name.trim().length < 2) errs.name = "Please enter your name (at least 2 characters).";
@@ -16,33 +20,16 @@ export default function ContactClient() {
     if (form.message.trim().length < 10) errs.message = "Please write a message of at least 10 characters.";
     setErrors(errs);
     if (Object.keys(errs).length) return;
-    // First choice: the real backend stores the message in the database.
-    try {
-      const { API_BASE } = await import("@/lib/api");
-      const res = await fetch(`${API_BASE}/contact`, {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      if (res.ok) {
-        setStatus("Message sent — thank you! It is stored safely and OBAFEMIX will get back to you as soon as possible.");
-        setForm({ name: "", email: "", subject: "Project Collaboration", message: "" });
-        return;
-      }
-      if (res.status === 429) { setStatus("Too many messages from this connection — please wait a few minutes and try again."); return; }
-      throw new Error("api");
-    } catch {
-      // Fallback (API offline): open the visitor's mail app, honestly.
-      const body = `Name: ${form.name}\nEmail: ${form.email}\n\n${form.message}`;
-      window.location.href = `mailto:${site.email}?subject=${encodeURIComponent(`[Portfolio] ${form.subject}`)}&body=${encodeURIComponent(body)}`;
-      setStatus("Opening your mail app with the message pre-filled. If nothing opened, write to me directly at yzigzag26@gmail.com");
-    }
+    const body = `Name: ${form.name}\nEmail: ${form.email}\n\n${form.message}`;
+    window.open(gmailCompose(`[Portfolio] ${form.subject}`, body), "_blank", "noopener,noreferrer");
+    setStatus("Opening Gmail with your message pre-filled — just press Send in Gmail. If nothing opened, allow pop-ups for this site or write to me directly at yzigzag26@gmail.com");
   };
   const field = (k: keyof typeof form) => ({
     value: form[k], "aria-invalid": !!errors[k],
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value }),
   });
   const rows = [
-    { icon: Mail, label: "EMAIL", value: site.email, href: `mailto:${site.email}` },
+    { icon: Mail, label: "EMAIL", value: site.email, href: gmailCompose("Hello OBAFEMIX") },
     { icon: Github, label: "GITHUB", value: site.githubLabel, href: site.github },
     { icon: MapPin, label: "LOCATION", value: site.location, href: site.maps },
   ];
@@ -95,7 +82,7 @@ export default function ContactClient() {
                 <a href={site.github} target="_blank" rel="noreferrer" aria-label="GitHub" className="glass rounded-full p-3 hover:shadow-[0_0_20px_rgba(139,92,246,.6)]"><Github size={18} /></a>
                 <span title="Coming soon" className="glass cursor-not-allowed rounded-full p-3 opacity-50" aria-disabled="true"><Linkedin size={18} /></span>
               </div>
-              <p className="mt-4 text-center text-xs text-white/40">Messages are stored by the site's backend. If it is unreachable, the form opens your mail app instead — nothing is ever lost silently.</p>
+              <p className="mt-4 text-center text-xs text-white/40">Pressing Send opens Gmail with your message pre-filled (to, subject and message) — you review it and press Send there. Nothing is sent until you do.</p>
             </form>
           </Reveal>
         </div>
