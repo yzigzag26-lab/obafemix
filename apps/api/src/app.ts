@@ -40,7 +40,7 @@ export async function buildApp(env: Env = loadEnv()): Promise<FastifyInstance> {
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
   await app.register(cookie);
-  await app.register(rateLimit, { max: 100, timeWindow: "1 minute" }); // per-route overrides for auth/contact
+  await app.register(rateLimit, { max: 300, timeWindow: "1 minute" }); // one admin Save is ~28 requests by design; auth/contact keep their strict per-route limits
 
   // ---- Swagger (must be registered before routes) --------------------------
   await app.register(swagger, {

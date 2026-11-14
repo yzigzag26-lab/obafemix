@@ -34,6 +34,10 @@ export default function Dashboard() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [toast, setToast] = useState("");
   const [errorKind, setErrorKind] = useState<"unreachable" | "rejected">("unreachable");
+  const [dirty, setDirty] = useState(false);
+  const baseline = useRef("");       // JSON of the draft as loaded / last successfully saved
+  const hydrated = useRef(false);    // true once the initial API+local load has finished
+  const draftRef = useRef<Draft | null>(null);
   const [imgPreview, setImgPreview] = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [newSkill, setNewSkill] = useState({ name: "", percent: 50, category: "Frontend", color: "#a78bfa", featured: false });
@@ -112,6 +116,8 @@ export default function Dashboard() {
         }
         const ms = await apiFetch("/admin/contact");
         if (ms.ok) { const mj = await ms.json(); if (Array.isArray(mj.data)) setMessages(mj.data); }
+        hydrated.current = true;
+        if (draftRef.current) { baseline.current = JSON.stringify(draftRef.current); setDirty(false); }
       } catch { router.replace("/admin"); return; }
     })();
     try {
@@ -130,6 +136,14 @@ export default function Dashboard() {
     setReady(true);
   }, [router]);
 
+  useEffect(() => {
+    draftRef.current = draft;
+    if (!hydrated.current) return;
+    const snap = JSON.stringify(draft);
+    if (!baseline.current) { baseline.current = snap; setDirty(false); return; }
+    setDirty(snap !== baseline.current);
+  }, [draft]);
+
   const save = async () => {
     if (saveState === "saving") return; // double-click guard: one save at a time
     setSaveState("saving"); setToast("");
@@ -137,7 +151,8 @@ export default function Dashboard() {
     let failKind: "unreachable" | "rejected" = "unreachable"; // widened below via markBad closure
     let step = "projects"; // which group of calls is running — reported in the toast if one dies
     let failDetail = "";
-    const markBad = (res?: Response) => { apiOk = false; if (res) failKind = "rejected"; };
+    let rejectedDetail = "";
+    const markBad = (res?: Response) => { apiOk = false; if (res) { failKind = "rejected"; if (!rejectedDetail) rejectedDetail = `${step} (HTTP ${res.status})`; } };
     // Working copy of the projects — when the server creates a project it hands
     // back a UUID; we ADOPT that id into the draft immediately. That is what
     // makes Save idempotent: a second Save updates (PUT) instead of creating
@@ -194,10 +209,11 @@ export default function Dashboard() {
     // Persist the draft WITH the adopted server ids, so a reload + Save still updates instead of duplicating.
     const nextDraft = { ...draft, projects };
     setDraft(nextDraft);
+    if (apiOk) { baseline.current = JSON.stringify(nextDraft); setDirty(false); }
     try { localStorage.setItem("obafemix.adminDraft", JSON.stringify(nextDraft)); } catch { /* storage full — DB save above is the source of truth */ }
     setSavedAt(new Date().toLocaleTimeString());
     if (apiOk) { setSaveState("success"); setToast("Saved successfully — everything is in the database."); }
-    else if ((failKind as string) === "rejected") { setSaveState("error"); setErrorKind("rejected"); setToast("The API answered, but it could not write to the database, so only this browser kept your changes. Check DATABASE_URL on Render — it must be the Session pooler address from Supabase."); }
+    else if ((failKind as string) === "rejected") { setSaveState("error"); setErrorKind("rejected"); setToast(`The API answered, but one part did not save: ${rejectedDetail || "unknown call"}. Everything else went through — press Save again, and if it repeats, tell me that step name.`); }
     else { setSaveState("error"); setErrorKind("unreachable"); setToast(`Saved in this browser only — the request died at "${step}" (${failDetail || "network error"}), so the database was not updated.`); }
     setTimeout(() => { setSaveState("idle"); setToast(""); }, 4000);
   };
@@ -218,7 +234,7 @@ export default function Dashboard() {
           <Logo size={36} /><span className="font-display font-extrabold">OBAFEMIX</span><span className="chip text-[10px]">ADMIN</span>
           <span className="flex-1" />
           {savedAt && <span className="text-xs text-emerald-300">Last saved {savedAt}</span>}
-          <button onClick={save} disabled={saveState === "saving"} className="btn-primary-glow inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60">{saveState === "saving" ? "Saving…" : saveState === "success" ? "✓ Saved" : "Save"}</button>
+          <button onClick={save} disabled={saveState === "saving" || !dirty} title={dirty ? "Save changes to the database" : "No changes to save"} className="btn-primary-glow inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40">{saveState === "saving" ? "Saving…" : saveState === "success" && !dirty ? "✓ Saved" : dirty ? "Save changes" : "No changes"}</button>
           <button onClick={reset} className="rounded-full border border-violet-300/30 px-4 py-2 text-sm hover:bg-violet-500/15">Reset</button>
           <Link href="/" className="rounded-full border border-violet-300/30 px-4 py-2 text-sm hover:bg-violet-500/15">View site</Link>
           <button onClick={signOut} className="rounded-full border border-red-300/30 px-4 py-2 text-sm text-red-200 hover:bg-red-500/15">Sign out</button>
