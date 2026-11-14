@@ -33,6 +33,7 @@ export default function Dashboard() {
   const [savedAt, setSavedAt] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [toast, setToast] = useState("");
+  const [errorKind, setErrorKind] = useState<"unreachable" | "rejected">("unreachable");
   const [imgPreview, setImgPreview] = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [newSkill, setNewSkill] = useState({ name: "", percent: 50, category: "Frontend", color: "#a78bfa", featured: false });
@@ -133,6 +134,8 @@ export default function Dashboard() {
     if (saveState === "saving") return; // double-click guard: one save at a time
     setSaveState("saving"); setToast("");
     let apiOk = true;
+    let failKind: "unreachable" | "rejected" = "unreachable"; // widened below via markBad closure
+    const markBad = (res?: Response) => { apiOk = false; if (res) failKind = "rejected"; };
     // Working copy of the projects — when the server creates a project it hands
     // back a UUID; we ADOPT that id into the draft immediately. That is what
     // makes Save idempotent: a second Save updates (PUT) instead of creating
@@ -144,13 +147,13 @@ export default function Dashboard() {
       for (const id of serverProjectIds.current.filter((id) => !currentIds.includes(id))) {
         const res = await apiFetch(`/admin/projects/${id}`, { method: "DELETE" });
         if (res.ok) serverProjectIds.current = serverProjectIds.current.filter((x) => x !== id);
-        else apiOk = false;
+        else markBad(res);
       }
       for (const proj of projects) {
         const body = JSON.stringify(proj);
         if (isUuid(proj.id) && serverProjectIds.current.includes(proj.id)) {
           const res = await apiFetch(`/admin/projects/${proj.id}`, { method: "PUT", body });
-          if (!res.ok) apiOk = false;
+          if (!res.ok) markBad(res);
         } else {
           const res = await apiFetch("/admin/projects", { method: "POST", body });
           if (res.ok) {
@@ -159,36 +162,37 @@ export default function Dashboard() {
               proj.id = j.data.id; // adopt the server id -> next Save is an update, not a duplicate create
               if (!serverProjectIds.current.includes(j.data.id)) serverProjectIds.current.push(j.data.id);
             }
-          } else apiOk = false;
+          } else markBad(res);
         }
       }
-    } catch { apiOk = false; }
+    } catch { markBad(); }
     try {
       const { apiFetch: af } = await import("@/lib/api");
       const before = await (await af("/skills")).json().catch(() => null);
       const serverNames: string[] = Array.isArray(before?.data) ? before.data.map((x: { name: string }) => x.name) : [];
       for (const name of serverNames.filter((n: string) => !draft.skills.some((s) => s.name === n))) {
         const row = before.data.find((x: { name: string }) => x.name === name);
-        if (row?.id) { const r = await af(`/admin/skills/${row.id}`, { method: "DELETE" }); if (!r.ok) apiOk = false; }
+        if (row?.id) { const r = await af(`/admin/skills/${row.id}`, { method: "DELETE" }); if (!r.ok) markBad(r); }
       }
-      for (const s of draft.skills) { const r = await af("/admin/skills", { method: "POST", body: JSON.stringify(s) }); if (!r.ok) apiOk = false; } // server upserts by name — safe to repeat
-      const rp = await af("/admin/profile", { method: "PATCH", body: JSON.stringify({ headline: draft.headline, location: draft.location, availability: draft.availability, aboutBio: draft.bio }) }); if (!rp.ok) apiOk = false;
-      const rs = await af("/admin/settings", { method: "PATCH", body: JSON.stringify({ metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, keywords: draft.keywords, themeColor: draft.themeColor, ogImageUrl: draft.ogImage, contactEmail: draft.email }) }); if (!rs.ok) apiOk = false;
+      for (const s of draft.skills) { const r = await af("/admin/skills", { method: "POST", body: JSON.stringify(s) }); if (!r.ok) markBad(r); } // server upserts by name — safe to repeat
+      const rp = await af("/admin/profile", { method: "PATCH", body: JSON.stringify({ headline: draft.headline, location: draft.location, availability: draft.availability, aboutBio: draft.bio }) }); if (!rp.ok) markBad(rp);
+      const rs = await af("/admin/settings", { method: "PATCH", body: JSON.stringify({ metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, keywords: draft.keywords, themeColor: draft.themeColor, ogImageUrl: draft.ogImage, contactEmail: draft.email }) }); if (!rs.ok) markBad(rs);
       const tr = await (await af("/admin/titles")).json().catch(() => null);
       const serverTitles: { id: string; label: string }[] = Array.isArray(tr?.data) ? tr.data : [];
-      for (const st2 of serverTitles.filter((x) => !draft.titles.includes(x.label))) { const r = await af(`/admin/titles/${st2.id}`, { method: "DELETE" }); if (!r.ok) apiOk = false; }
-      for (const label of draft.titles.filter((l) => !serverTitles.some((x) => x.label === l))) { const r = await af("/admin/titles", { method: "POST", body: JSON.stringify({ label }) }); if (!r.ok) apiOk = false; }
-      const g1 = await af("/admin/socials/github", { method: "PUT", body: JSON.stringify({ url: draft.github, published: true }) }); if (!g1.ok) apiOk = false;
-      const g2 = await af("/admin/socials/linkedin", { method: "PUT", body: JSON.stringify({ url: draft.linkedin, published: draft.linkedinPublished }) }); if (!g2.ok) apiOk = false;
-      const g3 = await af("/admin/socials/wazobia", { method: "PUT", body: JSON.stringify({ url: draft.wazobiaUrl, published: true }) }); if (!g3.ok) apiOk = false;
-    } catch { apiOk = false; }
+      for (const st2 of serverTitles.filter((x) => !draft.titles.includes(x.label))) { const r = await af(`/admin/titles/${st2.id}`, { method: "DELETE" }); if (!r.ok) markBad(r); }
+      for (const label of draft.titles.filter((l) => !serverTitles.some((x) => x.label === l))) { const r = await af("/admin/titles", { method: "POST", body: JSON.stringify({ label }) }); if (!r.ok) markBad(r); }
+      const g1 = await af("/admin/socials/github", { method: "PUT", body: JSON.stringify({ url: draft.github, published: true }) }); if (!g1.ok) markBad(g1);
+      const g2 = await af("/admin/socials/linkedin", { method: "PUT", body: JSON.stringify({ url: draft.linkedin, published: draft.linkedinPublished }) }); if (!g2.ok) markBad(g2);
+      const g3 = await af("/admin/socials/wazobia", { method: "PUT", body: JSON.stringify({ url: draft.wazobiaUrl, published: true }) }); if (!g3.ok) markBad(g3);
+    } catch { markBad(); }
     // Persist the draft WITH the adopted server ids, so a reload + Save still updates instead of duplicating.
     const nextDraft = { ...draft, projects };
     setDraft(nextDraft);
     try { localStorage.setItem("obafemix.adminDraft", JSON.stringify(nextDraft)); } catch { /* storage full — DB save above is the source of truth */ }
     setSavedAt(new Date().toLocaleTimeString());
     if (apiOk) { setSaveState("success"); setToast("Saved successfully — everything is in the database."); }
-    else { setSaveState("error"); setToast("Saved in this browser only — the API could not be reached, so the database was not updated."); }
+    else if ((failKind as string) === "rejected") { setSaveState("error"); setErrorKind("rejected"); setToast("The API answered, but it could not write to the database, so only this browser kept your changes. Check DATABASE_URL on Render — it must be the Session pooler address from Supabase."); }
+    else { setSaveState("error"); setErrorKind("unreachable"); setToast("Saved in this browser only — the API could not be reached at all, so the database was not updated."); }
     setTimeout(() => { setSaveState("idle"); setToast(""); }, 4000);
   };
   const reset = () => { setDraft(defaults); localStorage.removeItem("obafemix.adminDraft"); setSavedAt(""); };
@@ -219,7 +223,7 @@ export default function Dashboard() {
         <div role="status" className={`fixed bottom-6 right-6 z-50 flex max-w-sm items-start gap-3 rounded-2xl border p-4 shadow-2xl backdrop-blur-xl animate-[toastIn_.25s_ease-out] ${saveState === "error" ? "border-amber-300/40 bg-[#1a1206]/95" : "border-emerald-300/40 bg-[#061a10]/95"}`}>
           <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base font-bold ${saveState === "error" ? "bg-amber-400/20 text-amber-300" : "bg-emerald-400/20 text-emerald-300"}`}>{saveState === "error" ? "!" : "✓"}</span>
           <div className="text-sm">
-            <p className="font-display font-bold text-white">{saveState === "error" ? "Saved locally only" : "Save successful"}</p>
+            <p className="font-display font-bold text-white">{saveState === "error" ? (errorKind === "rejected" ? "Database didn't save" : "Saved locally only") : "Save successful"}</p>
             <p className="mt-0.5 text-white/65">{toast}</p>
           </div>
           <button onClick={() => { setToast(""); setSaveState("idle"); }} aria-label="Dismiss" className="ml-1 text-white/40 hover:text-white">✕</button>
