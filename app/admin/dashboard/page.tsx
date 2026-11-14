@@ -135,6 +135,8 @@ export default function Dashboard() {
     setSaveState("saving"); setToast("");
     let apiOk = true;
     let failKind: "unreachable" | "rejected" = "unreachable"; // widened below via markBad closure
+    let step = "projects"; // which group of calls is running — reported in the toast if one dies
+    let failDetail = "";
     const markBad = (res?: Response) => { apiOk = false; if (res) failKind = "rejected"; };
     // Working copy of the projects — when the server creates a project it hands
     // back a UUID; we ADOPT that id into the draft immediately. That is what
@@ -165,9 +167,10 @@ export default function Dashboard() {
           } else markBad(res);
         }
       }
-    } catch { markBad(); }
+    } catch (e) { markBad(); failDetail = e instanceof Error ? e.message : String(e); console.error("[admin save] failed at step:", step, e); }
     try {
       const { apiFetch: af } = await import("@/lib/api");
+      step = "skills";
       const before = await (await af("/skills")).json().catch(() => null);
       const serverNames: string[] = Array.isArray(before?.data) ? before.data.map((x: { name: string }) => x.name) : [];
       for (const name of serverNames.filter((n: string) => !draft.skills.some((s) => s.name === n))) {
@@ -175,16 +178,19 @@ export default function Dashboard() {
         if (row?.id) { const r = await af(`/admin/skills/${row.id}`, { method: "DELETE" }); if (!r.ok) markBad(r); }
       }
       for (const s of draft.skills) { const r = await af("/admin/skills", { method: "POST", body: JSON.stringify(s) }); if (!r.ok) markBad(r); } // server upserts by name — safe to repeat
+      step = "profile/settings";
       const rp = await af("/admin/profile", { method: "PATCH", body: JSON.stringify({ headline: draft.headline, location: draft.location, availability: draft.availability, aboutBio: draft.bio }) }); if (!rp.ok) markBad(rp);
       const rs = await af("/admin/settings", { method: "PATCH", body: JSON.stringify({ metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, keywords: draft.keywords, themeColor: draft.themeColor, ogImageUrl: draft.ogImage, contactEmail: draft.email }) }); if (!rs.ok) markBad(rs);
+      step = "titles";
       const tr = await (await af("/admin/titles")).json().catch(() => null);
       const serverTitles: { id: string; label: string }[] = Array.isArray(tr?.data) ? tr.data : [];
       for (const st2 of serverTitles.filter((x) => !draft.titles.includes(x.label))) { const r = await af(`/admin/titles/${st2.id}`, { method: "DELETE" }); if (!r.ok) markBad(r); }
       for (const label of draft.titles.filter((l) => !serverTitles.some((x) => x.label === l))) { const r = await af("/admin/titles", { method: "POST", body: JSON.stringify({ label }) }); if (!r.ok) markBad(r); }
+      step = "socials";
       const g1 = await af("/admin/socials/github", { method: "PUT", body: JSON.stringify({ url: draft.github, published: true }) }); if (!g1.ok) markBad(g1);
       const g2 = await af("/admin/socials/linkedin", { method: "PUT", body: JSON.stringify({ url: draft.linkedin, published: draft.linkedinPublished }) }); if (!g2.ok) markBad(g2);
       const g3 = await af("/admin/socials/wazobia", { method: "PUT", body: JSON.stringify({ url: draft.wazobiaUrl, published: true }) }); if (!g3.ok) markBad(g3);
-    } catch { markBad(); }
+    } catch (e) { markBad(); failDetail = e instanceof Error ? e.message : String(e); console.error("[admin save] failed at step:", step, e); }
     // Persist the draft WITH the adopted server ids, so a reload + Save still updates instead of duplicating.
     const nextDraft = { ...draft, projects };
     setDraft(nextDraft);
@@ -192,7 +198,7 @@ export default function Dashboard() {
     setSavedAt(new Date().toLocaleTimeString());
     if (apiOk) { setSaveState("success"); setToast("Saved successfully — everything is in the database."); }
     else if ((failKind as string) === "rejected") { setSaveState("error"); setErrorKind("rejected"); setToast("The API answered, but it could not write to the database, so only this browser kept your changes. Check DATABASE_URL on Render — it must be the Session pooler address from Supabase."); }
-    else { setSaveState("error"); setErrorKind("unreachable"); setToast("Saved in this browser only — the API could not be reached at all, so the database was not updated."); }
+    else { setSaveState("error"); setErrorKind("unreachable"); setToast(`Saved in this browser only — the request died at "${step}" (${failDetail || "network error"}), so the database was not updated.`); }
     setTimeout(() => { setSaveState("idle"); setToast(""); }, 4000);
   };
   const reset = () => { setDraft(defaults); localStorage.removeItem("obafemix.adminDraft"); setSavedAt(""); };
