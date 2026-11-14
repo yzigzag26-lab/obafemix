@@ -18,6 +18,7 @@ import { authRoutes } from "./routes/auth.js";
 import { adminRoutes } from "./routes/admin.js";
 import { adminExtraRoutes } from "./routes/admin-extra.js";
 import { adminMediaRoutes, mediaPublicRoutes } from "./routes/admin-media.js";
+import { aiRoutes } from "./routes/ai.js";
 
 /**
  * Builds the Fastify app (no listening here — server.ts does that,
@@ -93,6 +94,7 @@ export async function buildApp(env: Env = loadEnv()): Promise<FastifyInstance> {
       await v1.register(adminExtraRoutes);
       await v1.register(adminMediaRoutes);
       await v1.register(mediaPublicRoutes);
+      await v1.register(aiRoutes);
       // Next steps, one file per resource in src/routes/:
       //   site.ts · projects.ts · skills.ts · contact.ts · auth.ts · admin-media.ts · ai.ts
     },

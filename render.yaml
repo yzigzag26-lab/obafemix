@@ -24,6 +24,8 @@ services:
         value: "60"
       - key: SITE_ORIGIN           # the deployed Next.js site origin, for CORS
         sync: false
+      - key: GEMINI_API_KEY        # OBAFEMIX AI — Google AI Studio key (aistudio.google.com/apikey)
+        sync: false                # paste in Render dashboard — never commit secrets
       - key: NODE_ENV
         value: production
 
