@@ -24,10 +24,6 @@ services:
         value: "60"
       - key: SITE_ORIGIN           # the deployed Next.js site origin, for CORS
         sync: false
-      - key: SUPABASE_URL        # image storage uploads (project-images bucket)
-        value: https://hryxsusauoiyzlorpcys.supabase.co
-      - key: SUPABASE_SERVICE_ROLE_KEY  # Supabase Dashboard -> Project Settings -> API -> service_role
-        sync: false
       - key: NODE_ENV
         value: production
 

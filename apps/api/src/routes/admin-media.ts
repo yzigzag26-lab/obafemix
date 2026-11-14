@@ -2,14 +2,15 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { requireAdmin } from "../auth/session.js";
-import { storageConfigured, uploadProjectImage } from "../storage.js";
+import { getPool } from "../db/pool.js";
 
 const err = (code: string) => z.object({ error: z.object({ code: z.literal(code), message: z.string() }) });
 
-/** POST /admin/media — admin image upload to Supabase Storage.
- *  The browser sends the (already 16:10-cropped) image here with the
- *  session cookie; the API stores it and returns the public URL, which
- *  the dashboard then saves into projects.image_url on Save. */
+/** Image storage, v2: files are stored in Postgres (media_assets) and
+ *  served by GET /media/:id. Chosen over Supabase Storage so uploads work
+ *  with the DATABASE_URL the API already has — no extra secret keys.
+ *  projects.image_url stores the absolute /media URL on Save. */
+
 export async function adminMediaRoutes(app: FastifyInstance) {
   const r = app.withTypeProvider<ZodTypeProvider>();
   r.addHook("preValidation", requireAdmin);
@@ -17,30 +18,36 @@ export async function adminMediaRoutes(app: FastifyInstance) {
   r.post("/admin/media", {
     schema: {
       tags: ["Admin"], summary: "Upload a project image (multipart, field 'file')",
-      response: {
-        201: z.object({ data: z.object({ url: z.string() }) }),
-        400: err("VALIDATION"), 503: err("SERVER"),
-      },
+      response: { 201: z.object({ data: z.object({ id: z.string() }) }), 400: err("VALIDATION"), 503: err("SERVER") },
     },
   }, async (req, reply) => {
-    if (!storageConfigured()) {
-      return reply.status(503).send({ error: { code: "SERVER", message: "Image storage is not configured on the API (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing)." } });
-    }
+    const pool = getPool();
+    if (!pool) return reply.status(503).send({ error: { code: "SERVER", message: "Database is not connected yet." } });
     const part = await req.file().catch(() => null);
     if (!part) return reply.status(400).send({ error: { code: "VALIDATION", message: "No file received (expected multipart field 'file')." } });
-    if (!part.mimetype.startsWith("image/")) {
-      return reply.status(400).send({ error: { code: "VALIDATION", message: "Only image files are allowed." } });
-    }
+    if (!part.mimetype.startsWith("image/")) return reply.status(400).send({ error: { code: "VALIDATION", message: "Only image files are allowed." } });
     const buffer = await part.toBuffer();
-    if (!buffer.length || buffer.length > 6 * 1024 * 1024) {
-      return reply.status(400).send({ error: { code: "VALIDATION", message: "Image must be between 1 byte and 6 MB." } });
-    }
-    try {
-      const url = await uploadProjectImage(buffer, part.mimetype);
-      return reply.status(201).send({ data: { url } });
-    } catch (e) {
-      req.log.error(e);
-      return reply.status(503).send({ error: { code: "SERVER", message: "Storage upload failed — check the API logs." } });
-    }
+    if (!buffer.length || buffer.length > 6 * 1024 * 1024) return reply.status(400).send({ error: { code: "VALIDATION", message: "Image must be between 1 byte and 6 MB." } });
+    const row = (await pool.query(
+      `insert into media_assets (content_type, data) values ($1, $2) returning id::text`,
+      [part.mimetype, buffer]
+    )).rows[0];
+    return reply.status(201).send({ data: { id: row.id as string } });
+  });
+}
+
+/** Public image serving — project cards link here. Long immutable cache. */
+export async function mediaPublicRoutes(app: FastifyInstance) {
+  app.get("/media/:id", async (req, reply) => {
+    const pool = getPool();
+    if (!pool) return reply.status(503).send({ error: { code: "SERVER", message: "Database is not connected yet." } });
+    const { id } = req.params as { id: string };
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return reply.status(404).send({ error: { code: "NOT_FOUND", message: "Image not found." } });
+    const row = (await pool.query(`select content_type, data from media_assets where id = $1`, [id])).rows[0];
+    if (!row) return reply.status(404).send({ error: { code: "NOT_FOUND", message: "Image not found." } });
+    return reply
+      .header("Content-Type", row.content_type as string)
+      .header("Cache-Control", "public, max-age=31536000, immutable")
+      .send(row.data as Buffer);
   });
 }
