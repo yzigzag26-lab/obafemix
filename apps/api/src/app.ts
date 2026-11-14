@@ -35,6 +35,9 @@ export async function buildApp(env: Env = loadEnv()): Promise<FastifyInstance> {
   await app.register(cors, {
     origin: env.SITE_ORIGIN, // only the portfolio site may call us from a browser
     credentials: true, // allow the httpOnly admin session cookie
+    // @fastify/cors only allows GET,HEAD,POST by default — the admin API uses
+    // PUT/PATCH/DELETE too, and browsers block those at preflight without this.
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
   await app.register(cookie);
   await app.register(rateLimit, { max: 100, timeWindow: "1 minute" }); // per-route overrides for auth/contact
