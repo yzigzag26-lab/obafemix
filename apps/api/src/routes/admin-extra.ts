@@ -75,7 +75,7 @@ export async function adminExtraRoutes(app: FastifyInstance) {
         metaTitle: z.string().optional(), metaDescription: z.string().max(200).optional(),
         keywords: z.string().optional(),
         themeColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
-        ogImageUrl: z.string().optional(), contactEmail: z.string().email().optional(),
+        ogImageUrl: z.string().optional(), contactEmail: z.string().email().optional(), resumeUrl: z.string().optional(),
       }), response: { 200: ok } },
   }, async (req, reply) => {
     const pool = poolOr503(reply as never); if (!pool) return;
@@ -83,8 +83,8 @@ export async function adminExtraRoutes(app: FastifyInstance) {
     await pool.query(
       `update site_settings set meta_title=coalesce($2,meta_title), meta_description=coalesce($3,meta_description),
        keywords=coalesce($4,keywords), theme_color=coalesce($5,theme_color),
-       og_image_url=coalesce($6,og_image_url), contact_email=coalesce($7,contact_email), updated_at=now() where id=$1`,
-      [1, b.metaTitle ?? null, b.metaDescription ?? null, b.keywords ?? null, b.themeColor ?? null, b.ogImageUrl ?? null, b.contactEmail ?? null]
+       og_image_url=coalesce($6,og_image_url), contact_email=coalesce($7,contact_email), resume_url=coalesce($8,resume_url), updated_at=now() where id=$1`,
+      [1, b.metaTitle ?? null, b.metaDescription ?? null, b.keywords ?? null, b.themeColor ?? null, b.ogImageUrl ?? null, b.contactEmail ?? null, b.resumeUrl ?? null]
     );
     return { data: { ok: true as const } };
   });

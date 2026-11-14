@@ -20,7 +20,7 @@ const defaults = {
   projects: [defaultProject] as Project[],
   email: "yzigzag26@gmail.com", phone: "", contactLocation: "Lagos State, Nigeria", timezone: "Africa/Lagos (WAT)",
   github: "https://github.com/yzigzag26-lab", linkedin: "", linkedinPublished: false, wazobiaUrl: "https://wazobia-omega.vercel.app/",
-  metaTitle: "OBAFEMIX — I build solutions for a better tomorrow", metaDescription: "OBAFEMIX — student & full-stack developer in Lagos State, Nigeria.", keywords: "OBAFEMIX, full-stack developer, Lagos, WAZOBIA", themeColor: "#05010f", ogImage: "/assets/obafemix.png",
+  resumeUrl: "", metaTitle: "OBAFEMIX — I build solutions for a better tomorrow", metaDescription: "OBAFEMIX — student & full-stack developer in Lagos State, Nigeria.", keywords: "OBAFEMIX, full-stack developer, Lagos, WAZOBIA", themeColor: "#05010f", ogImage: "/assets/obafemix.png",
 };
 const LEVELS = ["Beginner", "Beginner–Intermediate", "Intermediate"];
 const panels = ["Overview", "About Me", "Professional Titles", "Skills & Levels", "Projects", "Messages", "Profile Image", "Contact Info", "Social Links", "Site Metadata"] as const;
@@ -109,6 +109,7 @@ export default function Dashboard() {
             keywords: sd.settings?.keywords || d.keywords,
             themeColor: sd.settings?.themeColor || d.themeColor,
             ogImage: sd.settings?.ogImageUrl || d.ogImage,
+            resumeUrl: sd.settings?.resumeUrl ?? d.resumeUrl,
             email: sd.settings?.contactEmail || d.email,
             github: sd.socials?.find((s: { platform: string }) => s.platform === "github")?.url || d.github,
             wazobiaUrl: sd.socials?.find((s: { platform: string }) => s.platform === "wazobia")?.url || d.wazobiaUrl,
@@ -197,7 +198,7 @@ export default function Dashboard() {
       for (const s of draft.skills) { const r = await af("/admin/skills", { method: "POST", body: JSON.stringify(s) }); if (!r.ok) markBad(r); } // server upserts by name — safe to repeat
       step = "profile/settings";
       const rp = await af("/admin/profile", { method: "PATCH", body: JSON.stringify({ headline: draft.headline, location: draft.location, availability: draft.availability, aboutBio: draft.bio }) }); if (!rp.ok) markBad(rp);
-      const rs = await af("/admin/settings", { method: "PATCH", body: JSON.stringify({ metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, keywords: draft.keywords, themeColor: draft.themeColor, ogImageUrl: draft.ogImage, contactEmail: draft.email }) }); if (!rs.ok) markBad(rs);
+      const rs = await af("/admin/settings", { method: "PATCH", body: JSON.stringify({ metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, keywords: draft.keywords, themeColor: draft.themeColor, ogImageUrl: draft.ogImage, contactEmail: draft.email, resumeUrl: draft.resumeUrl }) }); if (!rs.ok) markBad(rs);
       step = "titles";
       const tr = await (await af("/admin/titles")).json().catch(() => null);
       const serverTitles: { id: string; label: string }[] = Array.isArray(tr?.data) ? tr.data : [];
@@ -499,6 +500,13 @@ export default function Dashboard() {
               <div><label className={label}>Keywords</label><input className="input-dark" value={draft.keywords} onChange={e => set("keywords", e.target.value)} /></div>
               <div><label className={label}>Theme color</label><input type="color" value={draft.themeColor} onChange={e => set("themeColor", e.target.value)} className="h-11 w-20 cursor-pointer rounded-lg border border-violet-300/20 bg-transparent" /></div>
               <div><label className={label}>OG image path</label><input className="input-dark" value={draft.ogImage} onChange={e => set("ogImage", e.target.value)} /></div>
+              <div className="rounded-2xl border border-violet-300/15 p-4">
+                <label className={label}>Resume PDF (the hero “Resume” button downloads this)</label>
+                <input className="input-dark" placeholder="Paste a PDF link, or upload below — empty = button shows “Coming soon”" value={draft.resumeUrl} onChange={e => set("resumeUrl", e.target.value)} />
+                <input type="file" accept="application/pdf" className="input-dark mt-3" disabled={imgBusy} onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; setImgBusy(true); setImgMsg("Uploading resume PDF…"); try { const { uploadMediaFile } = await import("@/lib/api"); const url = await uploadMediaFile(f, "OBAFEMIX-Resume.pdf"); set("resumeUrl", url); setImgMsg("✓ Resume uploaded — press Save changes (top) to publish it."); } catch (err) { setImgMsg(`Upload failed: ${err instanceof Error ? err.message : "unknown error"}`); } finally { setImgBusy(false); } }} />
+                {imgMsg && panel === "Site Metadata" && <p className="mt-1.5 text-xs text-white/55">{imgMsg}</p>}
+                {draft.resumeUrl && <a href={draft.resumeUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm text-violet-300 underline">Check current resume ↗</a>}
+              </div>
             </div>
           )}
           <p className="mt-8 border-t border-violet-300/10 pt-4 text-xs text-white/40">Press <strong>Save</strong> (top bar) to sync projects, skills, profile, titles, socials and settings to the database{savedAt ? ` — last saved ${savedAt}` : ""}. A local draft is also kept in this browser as a backup.</p>

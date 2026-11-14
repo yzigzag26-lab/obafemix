@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Github, Linkedin, MapPin, ArrowRight, Mail } from "lucide-react";
+import { Github, Linkedin, MapPin, ArrowRight, Download } from "lucide-react";
 import { site } from "@/lib/site";
 
 function usePrefersReducedMotion() {
@@ -47,6 +47,7 @@ export default function Hero() {
   const reduced = usePrefersReducedMotion();
   const time = useClock();
   const [roles, setRoles] = useState<string[]>(site.roles);
+  const [resumeUrl, setResumeUrl] = useState("");
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -56,6 +57,7 @@ export default function Hero() {
         if (!res.ok) return;
         const j = await res.json();
         if (!cancelled && Array.isArray(j?.data?.titles) && j.data.titles.length) setRoles(j.data.titles);
+        if (!cancelled && typeof j?.data?.settings?.resumeUrl === "string") setResumeUrl(j.data.settings.resumeUrl);
       } catch { /* keep built-in titles */ }
     })();
     return () => { cancelled = true; };
@@ -127,7 +129,11 @@ export default function Hero() {
         <p className="mt-4 max-w-xl leading-relaxed text-white/70">{site.description}</p>
         <div className="mt-8 flex flex-wrap gap-3">
           <a href="#projects" className="btn-primary-glow shimmer-sweep inline-flex items-center gap-2 rounded-full px-6 py-3 font-semibold">View My Work <ArrowRight size={17} /></a>
-          <a href="#contact" className="inline-flex items-center gap-2 rounded-full border border-violet-300/35 px-6 py-3 font-semibold text-white/85 transition hover:bg-violet-500/15"><Mail size={17}/> Get in Touch</a>
+          {resumeUrl ? (
+            <a href={resumeUrl} download="OBAFEMIX-Resume.pdf" className="inline-flex items-center gap-2 rounded-full border border-violet-300/35 px-6 py-3 font-semibold text-white/85 transition hover:bg-violet-500/15"><Download size={17} /> Resume</a>
+          ) : (
+            <span title="Coming soon" className="inline-flex cursor-not-allowed items-center gap-2 rounded-full border border-violet-300/20 px-6 py-3 font-semibold text-white/45" aria-disabled="true"><Download size={17} /> Resume <span className="chip !py-0.5 text-[10px]">SOON</span></span>
+          )}
         </div>
         <div className="mt-8 flex flex-wrap items-center gap-4">
           <a href={site.github} target="_blank" rel="noreferrer" aria-label="GitHub" className="glass rounded-full p-3 transition hover:shadow-[0_0_24px_rgba(139,92,246,.7)]"><Github size={19} /></a>
