@@ -13,8 +13,7 @@ const EnvSchema = z.object({
   ADMIN_OTP_HASH: z.string().optional(), // argon2 hash — auth step
   SESSION_SECRET: z.string().min(16).optional(), // auth step
   SESSION_TTL_MINUTES: z.coerce.number().int().positive().default(60),
-  SUPABASE_URL: z.string().optional(),           // image storage (admin uploads)
-  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(), // server-only storage key
+  // (Project images are stored in Postgres — see routes/admin-media.ts — no storage keys needed.)
 });
 
 export type Env = z.infer<typeof EnvSchema>;
