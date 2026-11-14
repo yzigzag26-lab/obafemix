@@ -62,7 +62,7 @@ export async function adminExtraRoutes(app: FastifyInstance) {
       `update profile set display_name=coalesce($2,display_name), alias=coalesce($3,alias),
        headline=coalesce($4,headline), description=coalesce($5,description), location=coalesce($6,location),
        timezone=coalesce($7,timezone), avatar_url=coalesce($8,avatar_url),
-       availability=coalesce($9,availability), about_bio=coalesce($10,about_bio), updated_at=now() where id=1`,
+       availability=coalesce($9,availability), about_bio=coalesce($10,about_bio), updated_at=now() where id=$1`,
       [1, b.displayName ?? null, b.alias ?? null, b.headline ?? null, b.description ?? null,
        b.location ?? null, b.timezone ?? null, b.avatarUrl ?? null, b.availability ?? null, b.aboutBio ?? null]
     );
@@ -83,7 +83,7 @@ export async function adminExtraRoutes(app: FastifyInstance) {
     await pool.query(
       `update site_settings set meta_title=coalesce($2,meta_title), meta_description=coalesce($3,meta_description),
        keywords=coalesce($4,keywords), theme_color=coalesce($5,theme_color),
-       og_image_url=coalesce($6,og_image_url), contact_email=coalesce($7,contact_email), updated_at=now() where id=1`,
+       og_image_url=coalesce($6,og_image_url), contact_email=coalesce($7,contact_email), updated_at=now() where id=$1`,
       [1, b.metaTitle ?? null, b.metaDescription ?? null, b.keywords ?? null, b.themeColor ?? null, b.ogImageUrl ?? null, b.contactEmail ?? null]
     );
     return { data: { ok: true as const } };
