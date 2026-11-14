@@ -30,11 +30,14 @@ const clamp = (p: Pos, w: number, h: number): Pos => ({
   y: Math.min(Math.max(p.y, 8), Math.max(8, window.innerHeight - h - 8)),
 });
 
-const WELCOME: Msg = { from: "bot", text: "Hi! I'm the OBAFEMIX site assistant. Ask me about OBAFEMIX, WAZOBIA, his skills, projects — or how to get in touch." };
-const QUICK = ["Tell me about WAZOBIA", "What are his top skills?", "How can I contact him?", "What does he build?"];
+const WELCOME: Msg = { from: "bot", text: "Hi! I'm OBAFEMIX AI. Ask me about OBAFEMIX's skills, WAZOBIA, his projects — or why he's the safe, reliable developer to hire for your next build." };
+const QUICK = ["Why should I hire him?", "Tell me about WAZOBIA", "What are his top skills?", "Is he reliable?", "How can I contact him?"];
 
 function answer(raw: string): string {
   const q = raw.toLowerCase();
+  if (/(hire|why|trust|safe|reliable|deliver|depend|choose him|work with him)/.test(q))
+    return "Here's the honest case for hiring OBAFEMIX: he builds complete, working products — not demos. This very website runs on a backend he built himself (API, database, admin dashboard), and WAZOBIA is live right now for anyone to try. You get one developer who handles frontend, backend, database and deployment, communicates clearly, and shows his proof in public instead of just promising. Safe to hire, serious about delivery — reach him at yzigzag26@gmail.com or via the contact form below.";
+
   if (/(wazobia|language|yoruba|hausa|igbo)/.test(q))
     return "WAZOBIA is OBAFEMIX's flagship product — an African language technology ecosystem, Nigeria-first. It makes Yorùbá, Hausa and Igbo fully usable in everyday digital tools: translation, structured learning, pronunciation and cultural preservation, with English as a bridge. It's live at wazobia-omega.vercel.app — scroll to Projects and hit “Visit Live Website”.";
   if (/(skill|toolbox|tech|stack|percent|best|top)/.test(q)) {
@@ -53,7 +56,7 @@ function answer(raw: string): string {
     return "Hello! Ask me about WAZOBIA, his skills and percentages, his projects, or how to contact him.";
   if (/(price|cost|rate|charge)/.test(q))
     return "Pricing depends on the project — the honest answer is to ask him directly. Email yzigzag26@gmail.com with what you're building and he'll take it from there.";
-  return "I can answer questions about OBAFEMIX, WAZOBIA, his skills (with percentages), his projects, his location, and how to contact him. Try one of the quick prompts — or ask in your own words.";
+  return "I'm OBAFEMIX AI — I only chat about OBAFEMIX and his work: his skills, WAZOBIA, his projects, and why he's a safe, reliable hire. Try one of the quick prompts — or ask in your own words.";
 }
 
 /**
@@ -135,12 +138,29 @@ export default function AiChat() {
   // corner if the window was dragged, so it is always easy to find again.
   const closeChat = () => setOpen(false);
 
-  const send = (text: string) => {
+  const send = async (text: string) => {
     const t = text.trim(); if (!t || typing) return;
-    setMsgs((m) => [...m, { from: "user", text: t }]);
+    const history = [...msgs, { from: "user" as const, text: t }];
+    setMsgs(history);
     setInput("");
     setTyping(true);
-    setTimeout(() => { setMsgs((m) => [...m, { from: "bot", text: answer(t) }]); setTyping(false); }, 650);
+    try {
+      const { API_BASE } = await import("@/lib/api");
+      const res = await fetch(`${API_BASE}/ai/chat`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ messages: history.map((m) => ({ role: m.from === "bot" ? "assistant" : "user", text: m.text })) }),
+      });
+      if (!res.ok) throw new Error("ai");
+      const j = await res.json();
+      const reply = j?.data?.reply;
+      if (typeof reply !== "string" || !reply) throw new Error("ai");
+      setMsgs((m) => [...m, { from: "bot", text: reply }]);
+    } catch {
+      // Gemini not configured/reachable yet — built-in answers keep the chat working.
+      setMsgs((m) => [...m, { from: "bot", text: answer(t) }]);
+    } finally {
+      setTyping(false);
+    }
   };
 
   return (
@@ -189,8 +209,8 @@ export default function AiChat() {
               </span>
             </span>
             <span className="min-w-0 flex-1">
-              <span className="font-display block truncate text-sm font-bold">OBAFEMIX Assistant</span>
-              <span className="block text-[11px] text-emerald-300">● Online — answers from this site</span>
+              <span className="font-display block truncate text-sm font-bold">OBAFEMIX AI</span>
+              <span className="block text-[11px] text-emerald-300">● Online — here to talk about OBAFEMIX</span>
             </span>
             <Grip className="h-4 w-4 shrink-0 text-white/40" aria-hidden />
             <button type="button" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()} onClick={restartChat} aria-label="Restart chat" title="Restart chat" className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"><RotateCcw className="h-4 w-4" /></button>
@@ -231,7 +251,7 @@ export default function AiChat() {
             <input id="ai-input" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about OBAFEMIX…" className="input-dark !rounded-full" autoComplete="off" />
             <button type="submit" disabled={!input.trim() || typing} aria-label="Send message" className="btn-primary-glow flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full disabled:opacity-40"><Send className="h-[18px] w-[18px]" /></button>
           </form>
-          <p className="px-4 pb-3 text-center text-[10px] leading-relaxed text-white/40">On-device assistant — answers from this site&apos;s content, nothing is sent to a server. Drag the header to move me.</p>
+          <p className="px-4 pb-3 text-center text-[10px] leading-relaxed text-white/40">OBAFEMIX AI — I only answer questions about OBAFEMIX, his work and hiring him. Drag the header to move me.</p>
         </section>
       )}
     </>

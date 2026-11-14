@@ -13,7 +13,8 @@ const EnvSchema = z.object({
   ADMIN_OTP_HASH: z.string().optional(), // argon2 hash — auth step
   SESSION_SECRET: z.string().min(16).optional(), // auth step
   SESSION_TTL_MINUTES: z.coerce.number().int().positive().default(60),
-  // (Project images are stored in Postgres — see routes/admin-media.ts — no storage keys needed.)
+  GEMINI_API_KEY: z.string().optional(), // OBAFEMIX AI (routes/ai.ts) — Google AI Studio key
+  GEMINI_MODEL: z.string().optional(), // defaults to gemini-2.5-flash in routes/ai.ts
 });
 
 export type Env = z.infer<typeof EnvSchema>;
