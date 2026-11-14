@@ -14,16 +14,18 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
 export const isUuid = (s: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
-/** Upload a project image through the API (admin session cookie required).
- *  Returns the public storage URL to store in the project's image field. */
-export async function uploadProjectImage(blob: Blob): Promise<string> {
+/** Upload a file (project image or resume PDF) through the API (admin session
+ *  cookie required). Returns the absolute /media URL to store and link to. */
+export async function uploadMediaFile(blob: Blob, filename = "file"): Promise<string> {
   const form = new FormData();
-  form.append("file", blob, "project-image.webp");
+  form.append("file", blob, filename);
   const res = await fetch(`${API_BASE}/admin/media`, { method: "POST", body: form, credentials: "include" });
   const j = await res.json().catch(() => null);
   if (!res.ok || !j?.data?.id) throw new Error(j?.error?.message ?? `Upload failed (HTTP ${res.status})`);
   return `${API_BASE}/media/${j.data.id}`;
 }
+
+export const uploadProjectImage = (blob: Blob) => uploadMediaFile(blob, "project-image.webp");
 
 /** Crop/resize any picture to the project card's exact shape: 1600x1000 (16:10),
  *  centre-cover — so it can never look squished or cramped on the site. */

@@ -25,7 +25,7 @@ export async function adminMediaRoutes(app: FastifyInstance) {
     if (!pool) return reply.status(503).send({ error: { code: "SERVER", message: "Database is not connected yet." } });
     const part = await req.file().catch(() => null);
     if (!part) return reply.status(400).send({ error: { code: "VALIDATION", message: "No file received (expected multipart field 'file')." } });
-    if (!part.mimetype.startsWith("image/")) return reply.status(400).send({ error: { code: "VALIDATION", message: "Only image files are allowed." } });
+    if (!part.mimetype.startsWith("image/") && part.mimetype !== "application/pdf") return reply.status(400).send({ error: { code: "VALIDATION", message: "Only image files or PDFs are allowed." } });
     const buffer = await part.toBuffer();
     if (!buffer.length || buffer.length > 6 * 1024 * 1024) return reply.status(400).send({ error: { code: "VALIDATION", message: "Image must be between 1 byte and 6 MB." } });
     const row = (await pool.query(
@@ -45,9 +45,12 @@ export async function mediaPublicRoutes(app: FastifyInstance) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return reply.status(404).send({ error: { code: "NOT_FOUND", message: "Image not found." } });
     const row = (await pool.query(`select content_type, data from media_assets where id = $1`, [id])).rows[0];
     if (!row) return reply.status(404).send({ error: { code: "NOT_FOUND", message: "Image not found." } });
+    const isPdf = (row.content_type as string) === "application/pdf";
     return reply
       .header("Content-Type", row.content_type as string)
       .header("Cache-Control", "public, max-age=31536000, immutable")
+      // PDFs download as a file (the Resume button); images display inline.
+      .header("Content-Disposition", isPdf ? 'attachment; filename="OBAFEMIX-Resume.pdf"' : "inline")
       .send(row.data as Buffer);
   });
 }
