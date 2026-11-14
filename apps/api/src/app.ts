@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
+import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
@@ -16,6 +17,7 @@ import { publicRoutes } from "./routes/public.js";
 import { authRoutes } from "./routes/auth.js";
 import { adminRoutes } from "./routes/admin.js";
 import { adminExtraRoutes } from "./routes/admin-extra.js";
+import { adminMediaRoutes } from "./routes/admin-media.js";
 
 /**
  * Builds the Fastify app (no listening here — server.ts does that,
@@ -40,6 +42,7 @@ export async function buildApp(env: Env = loadEnv()): Promise<FastifyInstance> {
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
   await app.register(cookie);
+  await app.register(multipart, { limits: { fileSize: 6 * 1024 * 1024, files: 1 } });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" }); // one admin Save is ~28 requests by design; auth/contact keep their strict per-route limits
 
   // ---- Swagger (must be registered before routes) --------------------------
@@ -88,6 +91,7 @@ export async function buildApp(env: Env = loadEnv()): Promise<FastifyInstance> {
       await v1.register(authRoutes);
       await v1.register(adminRoutes);
       await v1.register(adminExtraRoutes);
+      await v1.register(adminMediaRoutes);
       // Next steps, one file per resource in src/routes/:
       //   site.ts · projects.ts · skills.ts · contact.ts · auth.ts · admin-media.ts · ai.ts
     },
