@@ -68,6 +68,7 @@ export async function buildApp(env: Env = loadEnv()): Promise<FastifyInstance> {
   // ---- Shared error envelope: { error: { code, message, fields? } } -------
   app.setErrorHandler((error, _req, reply) => {
     const err = error as { validation?: unknown; statusCode?: number; message?: string };
+    if (!err.validation && (err.statusCode ?? 500) >= 500) app.log.error(error); // real cause -> Render logs; response stays masked
     if (err.validation) {
       return reply.status(400).send({
         error: { code: "VALIDATION", message: "Request failed validation.", fields: err.validation },

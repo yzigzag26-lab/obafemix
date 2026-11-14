@@ -5,7 +5,9 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
   return fetch(`${API_BASE}${path}`, {
     ...init,
     credentials: "include", // the httpOnly admin session cookie
-    headers: { "content-type": "application/json", ...(init.headers ?? {}) },
+    // Only claim JSON when a body is actually sent: Fastify's JSON parser
+    // rejects an empty body with 400, which silently broke every DELETE.
+    headers: { ...(init.body ? { "content-type": "application/json" } : {}), ...(init.headers ?? {}) },
   });
 }
 
