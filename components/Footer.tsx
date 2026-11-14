@@ -1,9 +1,11 @@
+"use client";
 import Link from "next/link";
 import Image from "next/image";
 import { Activity, ArrowRight, ArrowUp, ArrowUpRight, Github, Heart, Linkedin, Mail, Sparkle } from "lucide-react";
 import Logo from "./Logo";
 import Reveal from "./Reveal";
 import { site } from "@/lib/site";
+import { useLinkedin } from "@/lib/use-linkedin";
 
 const QUICK = [
   { label: "Home", href: "#top" }, { label: "About", href: "#about" }, { label: "Projects", href: "#projects" },
@@ -12,6 +14,7 @@ const QUICK = [
 const DIVIDER = "min-w-0 lg:border-l lg:border-white/10 lg:pl-10";
 
 export default function Footer() {
+  const linkedin = useLinkedin();
   return (
     <footer className="relative overflow-hidden">
       {/* Full-bleed cinematic background (reference image 1) */}
@@ -50,7 +53,9 @@ export default function Footer() {
             <p className="mt-2 text-xs text-white/35">aka Linuxboss · Lagos State, Nigeria</p>
             <div className="mt-6 flex gap-3">
               <a href={site.github} target="_blank" rel="noreferrer" aria-label="GitHub" className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-white backdrop-blur-md transition-all hover:border-violet-400/50 hover:bg-violet-500/10 hover:shadow-[0_0_20px_rgba(139,92,246,0.3)]"><Github className="h-[18px] w-[18px]" /></a>
-              <span title="Coming soon" aria-disabled="true" className="flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#0a66c2] opacity-70 backdrop-blur-md"><Linkedin className="h-[18px] w-[18px]" /></span>
+              {linkedin
+                ? <a href={linkedin} target="_blank" rel="noreferrer" aria-label="LinkedIn" className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#0a66c2] backdrop-blur-md transition-all hover:border-violet-400/50 hover:bg-violet-500/10 hover:shadow-[0_0_20px_rgba(139,92,246,0.3)]"><Linkedin className="h-[18px] w-[18px]" /></a>
+                : <span title="Coming soon" aria-disabled="true" className="flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#0a66c2] opacity-70 backdrop-blur-md"><Linkedin className="h-[18px] w-[18px]" /></span>}
               <a href="#top" aria-label="Back to top" className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-white backdrop-blur-md transition-all hover:border-violet-400/50 hover:bg-violet-500/10"><ArrowUp className="h-[18px] w-[18px]" /></a>
             </div>
           </div>
@@ -74,7 +79,9 @@ export default function Footer() {
             <ul className="mt-4 space-y-2.5">
               <li><a href={site.github} target="_blank" rel="noreferrer" className="group flex items-center justify-between gap-6 py-0.5 text-[15px] text-white/65 transition-colors hover:text-white"><span>GitHub</span><ArrowUpRight className="h-4 w-4 shrink-0 text-violet-400 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></a></li>
               <li><a href={site.wazobia} target="_blank" rel="noreferrer" className="group flex items-center justify-between gap-6 py-0.5 text-[15px] text-white/65 transition-colors hover:text-white"><span>WAZOBIA — Live</span><ArrowUpRight className="h-4 w-4 shrink-0 text-violet-400 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></a></li>
-              <li><span title="Coming soon" className="flex cursor-not-allowed items-center justify-between gap-6 py-0.5 text-[15px] text-white/40"><span>LinkedIn — coming soon</span><span className="chip text-[9px]">SOON</span></span></li>
+              {linkedin
+                ? <li><a href={linkedin} target="_blank" rel="noreferrer" className="group flex items-center justify-between gap-6 py-0.5 text-[15px] text-white/65 transition-colors hover:text-white"><span>LinkedIn</span><ArrowUpRight className="h-4 w-4 shrink-0 text-violet-400 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></a></li>
+                : <li><span title="Coming soon" className="flex cursor-not-allowed items-center justify-between gap-6 py-0.5 text-[15px] text-white/40"><span>LinkedIn — coming soon</span><span className="chip text-[9px]">SOON</span></span></li>}
               <li><a href={site.maps} target="_blank" rel="noreferrer" className="group flex items-center justify-between gap-6 py-0.5 text-[15px] text-white/65 transition-colors hover:text-white"><span>Lagos, Nigeria</span><ArrowUpRight className="h-4 w-4 shrink-0 text-violet-400 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></a></li>
             </ul>
           </div>

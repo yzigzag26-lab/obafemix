@@ -3,12 +3,14 @@ import { useState, type FormEvent } from "react";
 import { ArrowUpRight, Github, Linkedin, Mail, MapPin, Send } from "lucide-react";
 import Reveal from "./Reveal";
 import { site } from "@/lib/site";
+import { useLinkedin } from "@/lib/use-linkedin";
 
 /** Opens Gmail's compose window with everything pre-filled (visitor just presses Send in Gmail). */
 const gmailCompose = (subject: string, body?: string) =>
   `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(site.email)}&su=${encodeURIComponent(subject)}${body ? `&body=${encodeURIComponent(body)}` : ""}`;
 
 export default function ContactClient() {
+  const linkedin = useLinkedin();
   const [form, setForm] = useState({ name: "", email: "", subject: "Project Collaboration", message: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState("");
@@ -53,11 +55,19 @@ export default function ContactClient() {
                   <ArrowUpRight className="text-white/40" size={18} />
                 </a>
               ))}
-              <div className="glass flex cursor-not-allowed items-center gap-4 rounded-2xl p-4 opacity-60" title="Coming soon">
-                <span className="rounded-xl bg-violet-500/20 p-3 text-violet-200"><Linkedin size={20} /></span>
-                <span className="flex-1"><span className="block font-mono text-[10px] tracking-[.25em] text-violet-300/80">LINKEDIN</span><span className="block font-medium">Coming soon — being set up</span></span>
-                <span className="chip text-[10px]">SOON</span>
-              </div>
+              {linkedin ? (
+                <a href={linkedin} target="_blank" rel="noreferrer" className="glass card-lift flex items-center gap-4 rounded-2xl p-4">
+                  <span className="rounded-xl bg-violet-500/20 p-3 text-violet-200"><Linkedin size={20} /></span>
+                  <span className="flex-1"><span className="block font-mono text-[10px] tracking-[.25em] text-violet-300/80">LINKEDIN</span><span className="block font-medium">Connect on LinkedIn</span></span>
+                  <ArrowUpRight className="text-white/40" size={18} />
+                </a>
+              ) : (
+                <div className="glass flex cursor-not-allowed items-center gap-4 rounded-2xl p-4 opacity-60" title="Coming soon">
+                  <span className="rounded-xl bg-violet-500/20 p-3 text-violet-200"><Linkedin size={20} /></span>
+                  <span className="flex-1"><span className="block font-mono text-[10px] tracking-[.25em] text-violet-300/80">LINKEDIN</span><span className="block font-medium">Coming soon — being set up</span></span>
+                  <span className="chip text-[10px]">SOON</span>
+                </div>
+              )}
             </div>
             <p className="font-hand mt-6 text-2xl text-violet-200">Let&apos;s turn ideas into reality.</p>
           </Reveal>
@@ -80,7 +90,9 @@ export default function ContactClient() {
               <div className="mt-6 flex items-center gap-3 text-white/40"><span className="h-px flex-1 bg-violet-300/15" /><span className="font-mono text-[10px] tracking-[.2em]">OTHER WAYS TO CONNECT</span><span className="h-px flex-1 bg-violet-300/15" /></div>
               <div className="mt-4 flex justify-center gap-3">
                 <a href={site.github} target="_blank" rel="noreferrer" aria-label="GitHub" className="glass rounded-full p-3 hover:shadow-[0_0_20px_rgba(139,92,246,.6)]"><Github size={18} /></a>
-                <span title="Coming soon" className="glass cursor-not-allowed rounded-full p-3 opacity-50" aria-disabled="true"><Linkedin size={18} /></span>
+                {linkedin
+                  ? <a href={linkedin} target="_blank" rel="noreferrer" aria-label="LinkedIn" className="glass rounded-full p-3 hover:shadow-[0_0_20px_rgba(139,92,246,.6)]"><Linkedin size={18} /></a>
+                  : <span title="Coming soon" className="glass cursor-not-allowed rounded-full p-3 opacity-50" aria-disabled="true"><Linkedin size={18} /></span>}
               </div>
               <p className="mt-4 text-center text-xs text-white/40">Pressing Send opens Gmail with your message pre-filled (to, subject and message) — you review it and press Send there. Nothing is sent until you do.</p>
             </form>

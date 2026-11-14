@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Github, Linkedin, MapPin, ArrowRight, Download } from "lucide-react";
 import { site } from "@/lib/site";
+import { useLinkedin } from "@/lib/use-linkedin";
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
@@ -48,6 +49,7 @@ export default function Hero() {
   const time = useClock();
   const [roles, setRoles] = useState<string[]>(site.roles);
   const [resumeUrl, setResumeUrl] = useState("");
+  const linkedin = useLinkedin();
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -137,9 +139,15 @@ export default function Hero() {
         </div>
         <div className="mt-8 flex flex-wrap items-center gap-4">
           <a href={site.github} target="_blank" rel="noreferrer" aria-label="GitHub" className="glass rounded-full p-3 transition hover:shadow-[0_0_24px_rgba(139,92,246,.7)]"><Github size={19} /></a>
-          <span title="Coming soon" className="glass cursor-not-allowed rounded-full p-3 opacity-50" aria-disabled="true"><Linkedin size={19} /></span>
+          {linkedin ? (
+            <a href={linkedin} target="_blank" rel="noreferrer" aria-label="LinkedIn" className="glass rounded-full p-3 transition hover:shadow-[0_0_24px_rgba(139,92,246,.7)]"><Linkedin size={19} /></a>
+          ) : (
+            <span title="Coming soon" className="glass cursor-not-allowed rounded-full p-3 opacity-50" aria-disabled="true"><Linkedin size={19} /></span>
+          )}
           <span className="flex items-center gap-2 text-sm text-white/70"><span className="pulse-dot h-2.5 w-2.5 rounded-full bg-emerald-400" /> Open to opportunities</span>
-          <span className="text-xs text-white/40">LinkedIn — Coming soon <span className="chip !py-0.5 text-[10px]">SOON</span></span>
+          {linkedin
+            ? <a href={linkedin} target="_blank" rel="noreferrer" className="text-xs text-violet-300 underline-offset-2 hover:underline">LinkedIn</a>
+            : <span className="text-xs text-white/40">LinkedIn — Coming soon <span className="chip !py-0.5 text-[10px]">SOON</span></span>}
         </div>
         <p className="mt-6 flex items-center gap-2 text-sm text-white/60"><MapPin size={16} className="text-violet-300" /> Lagos State, Nigeria · WAT <span suppressHydrationWarning className="font-mono">{time}</span></p>
       </div>
