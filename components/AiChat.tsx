@@ -36,7 +36,7 @@ const QUICK = ["Why should I hire him?", "Tell me about WAZOBIA", "What are his 
 function answer(raw: string): string {
   const q = raw.toLowerCase();
   if (/(hire|why|trust|safe|reliable|deliver|depend|choose him|work with him)/.test(q))
-    return "Here's the honest case for hiring OBAFEMIX: he builds complete, working products — not demos. This very website runs on a backend he built himself (API, database, admin dashboard), and WAZOBIA is live right now for anyone to try. You get one developer who handles frontend, backend, database and deployment, communicates clearly, and shows his proof in public instead of just promising. Safe to hire, serious about delivery — reach him at yzigzag26@gmail.com or via the contact form below.";
+    return "Here's the honest case for hiring OBAFEMIX: he builds complete, working products — not demos. This very website is a product he designed and built end-to-end, and WAZOBIA is live right now for anyone to try. You get one developer who owns the whole build — interface, logic, data and launch — communicates clearly, and shows his proof in public instead of just promising. Safe to hire, serious about delivery — reach him at yzigzag26@gmail.com or via the contact form below.";
 
   if (/(wazobia|language|yoruba|hausa|igbo)/.test(q))
     return "WAZOBIA is OBAFEMIX's flagship product — an African language technology ecosystem, Nigeria-first. It makes Yorùbá, Hausa and Igbo fully usable in everyday digital tools: translation, structured learning, pronunciation and cultural preservation, with English as a bridge. It's live at wazobia-omega.vercel.app — scroll to Projects and hit “Visit Live Website”.";
@@ -47,7 +47,7 @@ function answer(raw: string): string {
   if (/(contact|email|reach|hire|touch|message)/.test(q))
     return `You can reach OBAFEMIX at ${site.email} — or use the contact form in the Contact section (it opens your mail app with the message pre-filled, no server in between). He's open to collaborations, interesting projects and exciting opportunities.`;
   if (/(project|build|work|portfolio)/.test(q))
-    return "He builds complete web applications — frontends connected to APIs, plus the backend systems behind them — always turning ideas into working software, not prototypes. His featured project is WAZOBIA (React · TypeScript · Vercel). The Projects section shows every project in detail, and he can add more from /admin.";
+    return "He builds complete web applications — polished interfaces backed by powerful logic — always turning ideas into working software, not prototypes. His featured project is WAZOBIA (React · TypeScript · Vercel). The Projects section shows every project in detail.";
   if (/(who|about|obafemix|linuxboss|developer)/.test(q))
     return "OBAFEMIX is a student & full-stack developer based in Lagos State, Nigeria. “Linuxboss” is what the tech streets call him — OBAFEMIX is the name on everything he ships. His headline: “I build solutions for a better tomorrow.”";
   if (/(where|location|lagos|nigeria)/.test(q))
