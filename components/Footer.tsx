@@ -8,8 +8,8 @@ import { site } from "@/lib/site";
 import { useLinkedin } from "@/lib/use-linkedin";
 
 const QUICK = [
-  { label: "Home", href: "#top" }, { label: "About", href: "#about" }, { label: "Projects", href: "#projects" },
-  { label: "Skills", href: "#skills" }, { label: "Contact", href: "#contact" },
+  { label: "Home", href: "/" }, { label: "About", href: "/about" }, { label: "Projects", href: "/projects" },
+  { label: "Services", href: "/services" }, { label: "Skills", href: "/#skills" }, { label: "Contact", href: "/#contact" },
 ];
 const DIVIDER = "min-w-0 lg:border-l lg:border-white/10 lg:pl-10";
 
@@ -65,10 +65,10 @@ export default function Footer() {
             <ul className="mt-4 space-y-2.5">
               {QUICK.map((l) => (
                 <li key={l.label}>
-                  <a href={l.href} className="group flex items-center justify-between gap-6 py-0.5 text-[15px] text-white/65 transition-colors hover:text-white">
+                  <Link href={l.href} className="group flex items-center justify-between gap-6 py-0.5 text-[15px] text-white/65 transition-colors hover:text-white">
                     <span>{l.label}</span>
                     <ArrowUpRight className="h-4 w-4 shrink-0 text-violet-400 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-violet-300" />
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

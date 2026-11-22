@@ -1,6 +1,8 @@
 export const site = {
   name: "OBAFEMIX",
+  personName: "Obafemi Precious",
   alias: "Linuxboss",
+  url: "https://obafemix.vercel.app",
   location: "Lagos State, Nigeria",
   timezone: "Africa/Lagos",
   github: "https://github.com/yzigzag26-lab",
