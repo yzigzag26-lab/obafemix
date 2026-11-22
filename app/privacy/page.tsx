@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Logo from "@/components/Logo";
-export const metadata: Metadata = { title: "Privacy" };
+export const metadata: Metadata = { title: "Privacy", alternates: { canonical: "/privacy" } };
 export default function Privacy() {
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-16 sm:px-6">
