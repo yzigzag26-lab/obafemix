@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     description: "I build solutions for a better tomorrow. Explore the work, projects and development services of Obafemi Precious.",
     url: site.url,
     siteName: "OBAFEMIX",
-    images: [{ url: "/assets/obafemix-og.webp", width: 1200, height: 630, alt: "OBAFEMIX — Obafemi Precious" }],
+    images: [{ url: "/assets/obafemix-og.webp", alt: "OBAFEMIX — Obafemi Precious" }],
     locale: "en_NG",
     type: "website",
   },
