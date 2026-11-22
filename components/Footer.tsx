@@ -8,8 +8,8 @@ import { site } from "@/lib/site";
 import { useLinkedin } from "@/lib/use-linkedin";
 
 const QUICK = [
-  { label: "Home", href: "#top" }, { label: "About", href: "/about" }, { label: "Projects", href: "/projects" },
-  { label: "Services", href: "/services" }, { label: "Skills", href: "#skills" }, { label: "Contact", href: "#contact" },
+  { label: "Home", href: "/" }, { label: "About", href: "/about" }, { label: "Projects", href: "/projects" },
+  { label: "Services", href: "/services" }, { label: "Skills", href: "/#skills" }, { label: "Contact", href: "/#contact" },
 ];
 const DIVIDER = "min-w-0 lg:border-l lg:border-white/10 lg:pl-10";
 
